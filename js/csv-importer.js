@@ -129,7 +129,9 @@ class CSVImporter {
                                 const col3Str = cols[3].trim();
                                 const col4Str = cols[4].trim();
 
-                                if (col3Str.includes('/') || col3Str.includes('ห้อง')) {
+                                const isCol4DigitsOnly = /^\d+$/.test(col4Str);
+
+                                if (col3Str.includes('/') || col3Str.includes('ห้อง') || !isCol4DigitsOnly) {
                                     const parsedGR = this.parseGradeAndRoom(col3Str);
                                     grade = parsedGR.grade;
                                     room = parsedGR.room;
@@ -137,6 +139,7 @@ class CSVImporter {
                                 } else {
                                     grade = this.normalizeGrade(col3Str);
                                     room = col4Str.replace(/\D/g, '') || col4Str;
+                                    advisors = '';
                                 }
                             }
                             // Format 4 cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3)
@@ -147,6 +150,7 @@ class CSVImporter {
                                 const parsedGR = this.parseGradeAndRoom(cols[3]);
                                 grade = parsedGR.grade;
                                 room = parsedGR.room;
+                                advisors = '';
                             } 
                             // Format 3 cols: รหัสประจำตัว(0), ชื่อ-สกุล(1), ระดับชั้น/ห้อง(2)
                             else if (cols.length === 3) {
@@ -156,6 +160,7 @@ class CSVImporter {
                                 grade = parsedGR.grade;
                                 room = parsedGR.room;
                                 number = i.toString();
+                                advisors = '';
                             }
                             // Format 2 cols: ชื่อ-สกุล(0), ระดับชั้น/ห้อง(1)
                             else if (cols.length === 2) {
@@ -165,6 +170,7 @@ class CSVImporter {
                                 room = parsedGR.room;
                                 number = i.toString();
                                 studentId = `STD_${Date.now()}_${i}`;
+                                advisors = '';
                             }
 
                             if (fullName || studentId) {
