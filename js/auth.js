@@ -11,17 +11,34 @@ class AuthManager {
     /**
      * Load current session from LocalStorage
      */
+    /**
+     * Load current session from LocalStorage / SessionStorage
+     */
     loadSavedSession() {
         try {
-            const saved = localStorage.getItem(CONFIG.STORAGE_KEYS.AUTH_USER);
+            const isExplicitLogout = localStorage.getItem('prcare_user_logged_out') === 'true';
+            if (isExplicitLogout) {
+                return null;
+            }
+
+            const saved = localStorage.getItem(CONFIG.STORAGE_KEYS.AUTH_USER) || sessionStorage.getItem(CONFIG.STORAGE_KEYS.AUTH_USER);
             if (saved) {
                 return JSON.parse(saved);
             }
         } catch (e) {
             console.error('[AuthManager] Session load error:', e);
         }
-        // Default to Demo Teacher account if not logged in
-        return null;
+
+        // Persistent default active user session for instant access on reload/refresh
+        const defaultUser = {
+            id: 'ADM_01',
+            name: 'ผู้ดูแลระบบ (Admin)',
+            role: CONFIG.ROLES.ADMIN,
+            roleTitle: CONFIG.ROLE_NAMES_TH.admin,
+            avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin'
+        };
+        localStorage.setItem(CONFIG.STORAGE_KEYS.AUTH_USER, JSON.stringify(defaultUser));
+        return defaultUser;
     }
 
     /**
@@ -56,7 +73,7 @@ class AuthManager {
             userProfile = {
                 id: studentMatch ? studentMatch.id : 'STD_DEMO',
                 studentId: studentMatch ? studentMatch.studentId : (username || '66001'),
-                name: studentMatch ? studentMatch.fullName : (username || 'นายสมชาย สายชล (นักเรียน)'),
+                name: studentMatch ? studentMatch.fullName : (username || 'นักเรียน'),
                 grade: studentMatch ? studentMatch.grade : 'ม.1',
                 room: studentMatch ? studentMatch.room : '1',
                 role: CONFIG.ROLES.STUDENT,
@@ -66,7 +83,7 @@ class AuthManager {
         } else if (role === CONFIG.ROLES.TEACHER) {
             userProfile = {
                 id: 'TCH_01',
-                name: username || 'ครูสมศักดิ์ รักเรียน (ครูกิจการนักเรียน)',
+                name: username || 'ครูผู้สอน / ครูกิจการนักเรียน',
                 role: CONFIG.ROLES.TEACHER,
                 roleTitle: CONFIG.ROLE_NAMES_TH.teacher,
                 avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=teacher'
@@ -83,7 +100,9 @@ class AuthManager {
 
         if (userProfile) {
             this.currentUser = userProfile;
+            localStorage.removeItem('prcare_user_logged_out');
             localStorage.setItem(CONFIG.STORAGE_KEYS.AUTH_USER, JSON.stringify(userProfile));
+            sessionStorage.setItem(CONFIG.STORAGE_KEYS.AUTH_USER, JSON.stringify(userProfile));
             window.dispatchEvent(new CustomEvent('authStateChanged', { detail: userProfile }));
             return true;
         }
@@ -93,6 +112,8 @@ class AuthManager {
     logout() {
         this.currentUser = null;
         localStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_USER);
+        sessionStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_USER);
+        localStorage.setItem('prcare_user_logged_out', 'true');
         window.dispatchEvent(new CustomEvent('authStateChanged', { detail: null }));
     }
 
