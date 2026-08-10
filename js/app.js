@@ -579,6 +579,7 @@ class Application {
         // Search & Filter Triggers
         document.getElementById('student-search-input')?.addEventListener('input', () => this.renderStudentList());
         document.getElementById('student-grade-filter')?.addEventListener('change', () => this.renderStudentList());
+        document.getElementById('student-room-filter')?.addEventListener('change', () => this.renderStudentList());
     }
 
     handleOffenseImageSelect(file) {
