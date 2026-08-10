@@ -4,7 +4,7 @@
  */
 
 const CONFIG = {
-    SYSTEM_VERSION: "2.1",
+    SYSTEM_VERSION: "2.2",
 
     // 1. Firebase Realtime Database Configuration
     FIREBASE: {
@@ -79,7 +79,7 @@ const CONFIG = {
         EXTERNAL: { code: "external", label: "ส่งต่อภายนอก", icon: "arrow-up-right" }
     },
 
-    VERSION: "2.1"
+    VERSION: "2.2"
 };
 
 // Freeze Config

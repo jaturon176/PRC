@@ -30,6 +30,27 @@ class CSVImporter {
         document.body.removeChild(link);
     }
 
+    parseGradeAndRoom(str) {
+        if (!str) return { grade: 'ม.1', room: '1' };
+        const clean = String(str).trim().replace(/^\uFEFF/, '');
+        const parts = clean.split(/[\/\s-]+/).filter(Boolean);
+        let grade = 'ม.1';
+        let room = '1';
+
+        if (parts.length >= 2) {
+            let gPart = parts[0].trim();
+            let rPart = parts[1].trim();
+            if (/^\d+$/.test(gPart)) {
+                gPart = `ม.${gPart}`;
+            }
+            grade = gPart;
+            room = rPart;
+        } else if (parts.length === 1) {
+            grade = parts[0].trim();
+        }
+        return { grade, room };
+    }
+
     /**
      * Parse CSV File input for Students
      * Headers: เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง
@@ -53,7 +74,10 @@ class CSVImporter {
                     const parsedStudents = [];
 
                     for (let i = 1; i < lines.length; i++) {
-                        const cols = this.parseCSVLine(lines[i]);
+                        const line = lines[i].trim().replace(/^\uFEFF/, '');
+                        if (!line) continue;
+
+                        const cols = this.parseCSVLine(line);
                         if (cols.length >= 2 && cols.some(c => c.trim().length > 0)) {
                             let number = '';
                             let studentId = '';
@@ -62,41 +86,37 @@ class CSVImporter {
                             let room = '1';
                             let advisors = '';
 
-                            // Format A: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3)
-                            if (cols.length >= 4 && !isNaN(parseInt(cols[0].trim(), 10))) {
+                            // Format 4+ cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3)
+                            if (cols.length >= 4) {
                                 number = cols[0].trim();
                                 studentId = cols[1].trim();
                                 fullName = cols[2].trim();
-                                const gradeRoomStr = cols[3].trim();
-                                const parts = gradeRoomStr.split('/');
-                                grade = parts[0] ? parts[0].trim() : 'ม.1';
-                                room = parts[1] ? parts[1].trim() : '1';
+                                const parsedGR = this.parseGradeAndRoom(cols[3]);
+                                grade = parsedGR.grade;
+                                room = parsedGR.room;
                             } 
-                            // Format B: รหัสประจำตัว(0), ชื่อ-สกุล(1), ระดับชั้น/ห้อง(2)
-                            else if (cols.length === 3 || (cols.length >= 3 && cols[2].includes('/'))) {
+                            // Format 3 cols: รหัสประจำตัว(0), ชื่อ-สกุล(1), ระดับชั้น/ห้อง(2)
+                            else if (cols.length === 3) {
                                 studentId = cols[0].trim();
                                 fullName = cols[1].trim();
-                                const gradeRoomStr = cols[2].trim();
-                                const parts = gradeRoomStr.split('/');
-                                grade = parts[0] ? parts[0].trim() : 'ม.1';
-                                room = parts[1] ? parts[1].trim() : '1';
+                                const parsedGR = this.parseGradeAndRoom(cols[2]);
+                                grade = parsedGR.grade;
+                                room = parsedGR.room;
                                 number = i.toString();
                             }
-                            // Format C: Legacy multi-column (รหัสประจำตัว, คำนำหน้า, ชื่อ-สกุล, ระดับชั้น, ห้อง...)
-                            else {
-                                studentId = cols[0] || `STD_${Date.now()}_${i}`;
-                                const title = cols[1] || '';
-                                const name = cols[2] || '';
-                                fullName = title && !name.startsWith(title) ? `${title}${name}` : name;
-                                grade = cols[3] || 'ม.1';
-                                room = cols[4] || '1';
-                                number = cols[5] || i.toString();
-                                advisors = cols[7] || '';
+                            // Format 2 cols: ชื่อ-สกุล(0), ระดับชั้น/ห้อง(1)
+                            else if (cols.length === 2) {
+                                fullName = cols[0].trim();
+                                const parsedGR = this.parseGradeAndRoom(cols[1]);
+                                grade = parsedGR.grade;
+                                room = parsedGR.room;
+                                number = i.toString();
+                                studentId = `STD_${Date.now()}_${i}`;
                             }
 
                             // Auto-match advisor teachers from existing system data
                             if (!advisors && existingTeachers && existingTeachers.length > 0) {
-                                const targetRoomKey = `${grade}/${room}`; // e.g. "ม.1/1"
+                                const targetRoomKey = `${grade}/${room}`; // e.g. "ม.1/2"
                                 const matchedTeachers = existingTeachers.filter(t => {
                                     if (!t.responsibleRoom) return false;
                                     const tRoom = String(t.responsibleRoom).trim();
@@ -139,11 +159,18 @@ class CSVImporter {
         let entry = '';
         let inQuotes = false;
 
+        let delimiter = ',';
+        if (text.includes('\t')) {
+            delimiter = '\t';
+        } else if (text.includes(';') && !text.includes(',')) {
+            delimiter = ';';
+        }
+
         for (let i = 0; i < text.length; i++) {
             const char = text[i];
             if (char === '"') {
                 inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
+            } else if (char === delimiter && !inQuotes) {
                 results.push(entry.trim().replace(/^"|"$/g, ''));
                 entry = '';
             } else {
