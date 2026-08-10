@@ -129,14 +129,14 @@ class FirebaseService {
     // --- Comprehensive Cloud Sync & Realtime Dispatch ---
     async syncAllFromCloud() {
         const collections = [
-            { key: CONFIG.STORAGE_KEYS.STUDENTS, endpoint: CONFIG.FIREBASE.ENDPOINTS.STUDENTS, event: 'studentsUpdated' },
-            { key: CONFIG.STORAGE_KEYS.TEACHERS, endpoint: CONFIG.FIREBASE.ENDPOINTS.TEACHERS, event: 'teachersUpdated' },
-            { key: CONFIG.STORAGE_KEYS.USERS, endpoint: CONFIG.FIREBASE.ENDPOINTS.USERS, event: 'usersUpdated' },
-            { key: CONFIG.STORAGE_KEYS.SCREENINGS, endpoint: CONFIG.FIREBASE.ENDPOINTS.SCREENINGS, event: 'screeningsUpdated' },
-            { key: CONFIG.STORAGE_KEYS.MERITS, endpoint: CONFIG.FIREBASE.ENDPOINTS.MERITS, event: 'meritsUpdated' },
-            { key: CONFIG.STORAGE_KEYS.OFFENSES, endpoint: CONFIG.FIREBASE.ENDPOINTS.OFFENSES, event: 'offensesUpdated' },
-            { key: CONFIG.STORAGE_KEYS.REFERRALS, endpoint: CONFIG.FIREBASE.ENDPOINTS.REFERRALS, event: 'referralsUpdated' },
-            { key: CONFIG.STORAGE_KEYS.ACTIVITIES, endpoint: CONFIG.FIREBASE.ENDPOINTS.ACTIVITIES, event: 'activitiesUpdated' }
+            { key: CONFIG.STORAGE_KEYS.STUDENTS, endpoint: CONFIG.FIREBASE.ENDPOINTS.STUDENTS, event: 'studentsUpdated', idKey: 'studentId' },
+            { key: CONFIG.STORAGE_KEYS.TEACHERS, endpoint: CONFIG.FIREBASE.ENDPOINTS.TEACHERS, event: 'teachersUpdated', idKey: 'fullName' },
+            { key: CONFIG.STORAGE_KEYS.USERS, endpoint: CONFIG.FIREBASE.ENDPOINTS.USERS, event: 'usersUpdated', idKey: 'username' },
+            { key: CONFIG.STORAGE_KEYS.SCREENINGS, endpoint: CONFIG.FIREBASE.ENDPOINTS.SCREENINGS, event: 'screeningsUpdated', idKey: 'id' },
+            { key: CONFIG.STORAGE_KEYS.MERITS, endpoint: CONFIG.FIREBASE.ENDPOINTS.MERITS, event: 'meritsUpdated', idKey: 'id' },
+            { key: CONFIG.STORAGE_KEYS.OFFENSES, endpoint: CONFIG.FIREBASE.ENDPOINTS.OFFENSES, event: 'offensesUpdated', idKey: 'id' },
+            { key: CONFIG.STORAGE_KEYS.REFERRALS, endpoint: CONFIG.FIREBASE.ENDPOINTS.REFERRALS, event: 'referralsUpdated', idKey: 'id' },
+            { key: CONFIG.STORAGE_KEYS.ACTIVITIES, endpoint: CONFIG.FIREBASE.ENDPOINTS.ACTIVITIES, event: 'activitiesUpdated', idKey: 'id' }
         ];
 
         for (const item of collections) {
@@ -149,15 +149,33 @@ class FirebaseService {
                         ...cloudData[id]
                     }));
                 } else if (Array.isArray(cloudData)) {
-                    itemsList = cloudData.filter(Boolean);
+                    itemsList = cloudData.filter(x => x !== null);
                 }
 
-                // Check if local cache differs
-                const currentCache = this.getCache(item.key) || [];
-                if (JSON.stringify(currentCache) !== JSON.stringify(itemsList)) {
-                    this.setCache(item.key, itemsList);
-                    window.dispatchEvent(new CustomEvent(item.event, { detail: itemsList }));
-                }
+                // Merge Cloud Data with Local Cache Data safely (preserve local additions)
+                const localData = this.getCache(item.key) || [];
+                const map = new Map();
+
+                localData.forEach(it => {
+                    const k = it.studentId || it.id || (item.idKey && it[item.idKey]);
+                    if (k) map.set(k, it);
+                });
+
+                itemsList.forEach(it => {
+                    const k = it.studentId || it.id || (item.idKey && it[item.idKey]);
+                    if (k) {
+                        const localItem = map.get(k);
+                        if (!localItem) {
+                            map.set(k, it);
+                        } else if (new Date(it.updatedAt || 0) > new Date(localItem.updatedAt || 0)) {
+                            map.set(k, { ...localItem, ...it });
+                        }
+                    }
+                });
+
+                const merged = Array.from(map.values());
+                this.setCache(item.key, merged);
+                window.dispatchEvent(new CustomEvent(item.event, { detail: merged }));
             }
         }
     }
@@ -171,14 +189,13 @@ class FirebaseService {
 
     async saveStudent(student) {
         const students = this.getStudents();
-        let updatedStudents;
         if (!student.id) {
             student.id = 'STD_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
             student.createdAt = new Date().toISOString();
         }
         student.updatedAt = new Date().toISOString();
 
-        const index = students.findIndex(s => s.id === student.id || s.studentId === student.studentId);
+        const index = students.findIndex(s => s.id === student.id || (s.studentId && s.studentId === student.studentId));
         if (index >= 0) {
             students[index] = { ...students[index], ...student };
         } else {
@@ -188,7 +205,6 @@ class FirebaseService {
         this.setCache(CONFIG.STORAGE_KEYS.STUDENTS, students);
         window.dispatchEvent(new CustomEvent('studentsUpdated', { detail: students }));
 
-        // Cloud Sync
         if (this.isOnline) {
             await this.cloudPut(`${CONFIG.FIREBASE.ENDPOINTS.STUDENTS}/${student.id}`, student);
         }
@@ -198,15 +214,18 @@ class FirebaseService {
     async saveStudentsBatch(newStudentsList) {
         const students = this.getStudents();
         const map = new Map();
+
+        // 1. Index current local students by studentId (or id)
         students.forEach(s => {
-            const key = s.id || s.studentId;
+            const key = s.studentId || s.id;
             if (key) map.set(key, s);
         });
 
+        // 2. Insert/Update new imported batch students
         newStudentsList.forEach((s, idx) => {
             if (!s.id) s.id = 'STD_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4);
             s.updatedAt = new Date().toISOString();
-            const key = s.id || s.studentId;
+            const key = s.studentId || s.id;
             map.set(key, s);
         });
 
