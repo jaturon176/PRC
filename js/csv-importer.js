@@ -44,9 +44,10 @@ class CSVImporter {
                 gPart = `ม.${gPart}`;
             }
             grade = gPart;
-            room = rPart;
+            room = rPart.replace(/\D/g, '') || rPart;
         } else if (parts.length === 1) {
             grade = parts[0].trim();
+            room = clean.replace(/\D/g, '') || '1';
         }
         return { grade, room };
     }

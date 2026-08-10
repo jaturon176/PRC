@@ -903,13 +903,20 @@ class Application {
         return str;
     }
 
+    normalizeRoom(r) {
+        if (!r) return '';
+        const str = String(r).trim().replace(/["']/g, '');
+        const digits = str.replace(/\D/g, '');
+        return digits || str;
+    }
+
     updateRoomFilterDropdown() {
         const roomSelect = document.getElementById('student-room-filter');
         if (!roomSelect) return;
 
         const selectedGradeRaw = document.getElementById('student-grade-filter')?.value || '';
         const selectedGrade = this.normalizeGrade(selectedGradeRaw);
-        const currentSelectedRoom = roomSelect.value;
+        const currentSelectedRoom = this.normalizeRoom(roomSelect.value);
         const students = firebaseService.getStudents() || [];
 
         let filteredStudents = students;
@@ -922,15 +929,14 @@ class Application {
 
         const roomsSet = new Set();
         filteredStudents.forEach(s => {
-            if (s.room !== undefined && s.room !== null && String(s.room).trim() !== '') {
-                roomsSet.add(String(s.room).trim());
+            const rNorm = this.normalizeRoom(s.room);
+            if (rNorm) {
+                roomsSet.add(rNorm);
             }
         });
 
         const sortedRooms = Array.from(roomsSet).sort((a, b) => {
-            const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
-            const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
-            return numA - numB;
+            return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0);
         });
 
         roomSelect.innerHTML = '<option value="">-- เลือกห้องทั้งหมด --</option>';
@@ -971,7 +977,11 @@ class Application {
             });
         }
         if (roomFilter) {
-            students = students.filter(s => String(s.room).trim() === String(roomFilter).trim());
+            const normRoomFilter = this.normalizeRoom(roomFilter);
+            students = students.filter(s => {
+                const sRoomNorm = this.normalizeRoom(s.room);
+                return sRoomNorm === normRoomFilter || String(s.room).trim() === String(roomFilter).trim();
+            });
         }
 
         // Sort students NUMERICALLY: Grade level -> Room number -> Student Number (1, 2, 3, 4, 5... 10, 11)
