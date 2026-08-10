@@ -411,6 +411,7 @@ class Application {
 
                 const firstStudent = parsed[0];
                 const targetGrade = this.normalizeGrade(firstStudent.grade) || 'ม.1';
+                const targetRoom = this.normalizeRoom(firstStudent.room) || '1';
                 const rooms = [...new Set(parsed.map(s => `ห้อง ${s.room}`))];
 
                 this._skipStudentListRefresh = true;
@@ -419,7 +420,7 @@ class Application {
 
                 this.closeModal('modal-csv-import');
 
-                // Explicitly set grade filter to imported grade and reset room filter to show ALL students
+                // 1. Explicitly set grade filter to imported grade
                 const gradeSelect = document.getElementById('student-grade-filter');
                 if (gradeSelect) {
                     for (let opt of gradeSelect.options) {
@@ -430,8 +431,23 @@ class Application {
                     }
                 }
 
+                // 2. Refresh room dropdown options so new rooms are available
+                this.updateRoomFilterDropdown();
+
+                // 3. Automatically switch room filter to newly imported room so user sees imported students immediately
                 const roomSelect = document.getElementById('student-room-filter');
-                if (roomSelect) roomSelect.value = '';
+                if (roomSelect) {
+                    const normTarget = this.normalizeRoom(targetRoom);
+                    let foundOption = false;
+                    for (let opt of roomSelect.options) {
+                        if (this.normalizeRoom(opt.value) === normTarget) {
+                            roomSelect.value = opt.value;
+                            foundOption = true;
+                            break;
+                        }
+                    }
+                    if (!foundOption) roomSelect.value = '';
+                }
 
                 this.renderStudentList();
                 this.renderDashboard();
@@ -919,21 +935,28 @@ class Application {
         const currentSelectedRoom = this.normalizeRoom(roomSelect.value);
         const students = firebaseService.getStudents() || [];
 
-        let filteredStudents = students;
-        if (selectedGrade) {
-            filteredStudents = students.filter(s => {
-                const sGradeNorm = this.normalizeGrade(s.grade);
-                return sGradeNorm === selectedGrade || `${sGradeNorm}/${s.room}` === selectedGrade;
-            });
-        }
-
         const roomsSet = new Set();
-        filteredStudents.forEach(s => {
-            const rNorm = this.normalizeRoom(s.room);
-            if (rNorm) {
-                roomsSet.add(rNorm);
+
+        students.forEach(s => {
+            const sGradeNorm = this.normalizeGrade(s.grade);
+            const isGradeMatch = !selectedGrade || sGradeNorm === selectedGrade || 
+                                 String(s.grade || '').includes(selectedGrade) || 
+                                 `${sGradeNorm}/${s.room}`.includes(selectedGrade);
+            if (isGradeMatch) {
+                const rNorm = this.normalizeRoom(s.room);
+                if (rNorm) {
+                    roomsSet.add(rNorm);
+                }
             }
         });
+
+        // Fallback: if no rooms match strict grade, include all available rooms from student data
+        if (roomsSet.size === 0) {
+            students.forEach(s => {
+                const rNorm = this.normalizeRoom(s.room);
+                if (rNorm) roomsSet.add(rNorm);
+            });
+        }
 
         const sortedRooms = Array.from(roomsSet).sort((a, b) => {
             return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0);
@@ -973,14 +996,18 @@ class Application {
             const normGrade = this.normalizeGrade(gradeFilter);
             students = students.filter(s => {
                 const sGradeNorm = this.normalizeGrade(s.grade);
-                return sGradeNorm === normGrade || `${sGradeNorm}/${s.room}` === normGrade;
+                return !normGrade || sGradeNorm === normGrade || 
+                       String(s.grade || '').includes(normGrade) || 
+                       `${sGradeNorm}/${s.room}`.includes(normGrade);
             });
         }
         if (roomFilter) {
             const normRoomFilter = this.normalizeRoom(roomFilter);
             students = students.filter(s => {
                 const sRoomNorm = this.normalizeRoom(s.room);
-                return sRoomNorm === normRoomFilter || String(s.room).trim() === String(roomFilter).trim();
+                return sRoomNorm === normRoomFilter || 
+                       String(s.room).trim() === String(roomFilter).trim() ||
+                       String(s.room).includes(normRoomFilter);
             });
         }
 
