@@ -24,6 +24,11 @@ class Application {
         // 2. Setup Page Routing & Navigation
         this.setupNavigation();
 
+        // Override window.alert to use custom beautiful white card popup
+        window.alert = (msg) => {
+            this.alertDialog({ title: 'แจ้งเตือนระบบ', message: msg, type: 'info' });
+        };
+
         // 3. Setup Global Event Listeners & Modals
         this.setupEventListeners();
 
@@ -281,7 +286,60 @@ class Application {
             };
             await firebaseService.saveStudent(student);
             this.closeModal('modal-student');
-            alert('บันทึกข้อมูลนักเรียนเรียบร้อย');
+            await this.alertDialog({ title: 'บันทึกข้อมูลสำเร็จ', message: 'บันทึกข้อมูลนักเรียนเรียบร้อยแล้ว', type: 'success' });
+        });
+
+        // Batch Delete Students Modal & Event Listeners
+        document.getElementById('btn-batch-delete-students')?.addEventListener('click', () => {
+            this.updateBatchDeleteCountPreview();
+            this.openModal('modal-batch-delete-students');
+        });
+
+        document.getElementById('batch-delete-grade-select')?.addEventListener('change', () => this.updateBatchDeleteCountPreview());
+        document.getElementById('batch-delete-room-select')?.addEventListener('change', () => this.updateBatchDeleteCountPreview());
+
+        document.getElementById('form-batch-delete-students')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const grade = document.getElementById('batch-delete-grade-select').value;
+            const room = document.getElementById('batch-delete-room-select').value;
+
+            const students = firebaseService.getStudents();
+            const matching = students.filter(s => {
+                const matchGrade = (grade === 'ALL' || !grade) ? true : (s.grade === grade);
+                const matchRoom = (room === 'ALL' || !room) ? true : (String(s.room) === String(room));
+                return matchGrade && matchRoom;
+            });
+
+            if (matching.length === 0) {
+                await this.alertDialog({
+                    title: 'ไม่พบข้อมูลนักเรียน',
+                    message: 'ไม่พบรายชื่อนักเรียนตรงตามระดับชั้นและห้องที่เลือก',
+                    type: 'warning'
+                });
+                return;
+            }
+
+            const gradeText = grade === 'ALL' ? 'ทุกระดับชั้น' : grade;
+            const roomText = room === 'ALL' ? 'ทุกห้อง' : `ห้อง ${room}`;
+
+            const confirmed = await this.confirmDialog({
+                title: 'ยืนยันลบข้อมูลนักเรียนยกชุด',
+                message: `คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนักเรียนกลุ่ม (${gradeText} ${roomText}) จำนวนรวมทั้งหมด ${matching.length} ราย ออกจากระบบ?`,
+                type: 'danger',
+                confirmText: 'ลบข้อมูลกลุ่มนี้'
+            });
+
+            if (confirmed) {
+                const deletedCount = await firebaseService.deleteStudentsBatch(grade, room);
+                this.closeModal('modal-batch-delete-students');
+                this.renderStudentList();
+                this.renderDashboard();
+                await this.alertDialog({
+                    title: 'ลบข้อมูลสำเร็จ',
+                    message: `ระบบได้ทำการลบข้อมูลนักเรียนกลุ่ม ${gradeText} ${roomText} จำนวน ${deletedCount} ราย ออกจากระบบเรียบร้อยแล้ว`,
+                    type: 'success'
+                });
+            }
         });
 
         // Teacher Modal & Actions
@@ -303,7 +361,7 @@ class Application {
             };
             await firebaseService.saveTeacher(teacher);
             this.closeModal('modal-teacher');
-            alert('บันทึกข้อมูลครูเรียบร้อย');
+            await this.alertDialog({ title: 'บันทึกข้อมูลสำเร็จ', message: 'บันทึกข้อมูลครู/บุคลากรเรียบร้อยแล้ว', type: 'success' });
         });
 
         // CSV Teacher Import Controls
@@ -880,7 +938,11 @@ class Application {
         });
         if (confirmed) {
             await firebaseService.deleteStudent(id);
-            alert('ลบข้อมูลนักเรียนสำเร็จ');
+            await this.alertDialog({
+                title: 'ลบข้อมูลสำเร็จ',
+                message: 'ระบบได้ทำการลบข้อมูลนักเรียนออกจากระบบเรียบร้อยแล้ว',
+                type: 'success'
+            });
         }
     }
 
@@ -936,7 +998,11 @@ class Application {
         });
         if (confirmed) {
             await firebaseService.deleteTeacher(id);
-            alert('ลบข้อมูลครูเรียบร้อย');
+            await this.alertDialog({
+                title: 'ลบข้อมูลสำเร็จ',
+                message: 'ระบบได้ทำการลบข้อมูลครู/บุคลากรออกจากระบบเรียบร้อยแล้ว',
+                type: 'success'
+            });
         }
     }
 
@@ -1079,7 +1145,11 @@ class Application {
         });
         if (confirmed) {
             await firebaseService.deleteOffense(id);
-            alert('ลบรายการสำเร็จ');
+            await this.alertDialog({
+                title: 'ลบข้อมูลสำเร็จ',
+                message: 'ระบบได้ทำการลบรายการพฤติกรรมออกจากระบบเรียบร้อยแล้ว',
+                type: 'success'
+            });
         }
     }
 
@@ -1256,7 +1326,11 @@ class Application {
         });
         if (confirmed) {
             await firebaseService.deleteUser(id);
-            alert('ลบบัญชีผู้ใช้เรียบร้อยแล้ว');
+            await this.alertDialog({
+                title: 'ลบข้อมูลสำเร็จ',
+                message: 'ระบบได้ทำการลบบัญชีผู้ใช้งานออกจากระบบเรียบร้อยแล้ว',
+                type: 'success'
+            });
         }
     }
 
@@ -1355,6 +1429,91 @@ class Application {
             btnOk?.addEventListener('click', handleOk);
             btnCancel?.addEventListener('click', handleCancel);
         });
+    }
+
+    // --- Custom Alert / Notification Dialog Helper (White Card Pop-up) ---
+    alertDialog({ title = 'ดำเนินการสำเร็จ', message = 'ระบบบันทึกข้อมูลเรียบร้อยแล้ว', type = 'success', confirmText = 'ตกลง' }) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('modal-alert-dialog');
+            const iconWrapper = document.getElementById('alert-dialog-icon');
+            const iconI = document.getElementById('alert-dialog-icon-i');
+            const titleEl = document.getElementById('alert-dialog-title');
+            const msgEl = document.getElementById('alert-dialog-message');
+            const btnOk = document.getElementById('alert-dialog-btn-ok');
+            const card = document.getElementById('alert-dialog-card');
+
+            if (!modal) {
+                alert(message);
+                resolve(true);
+                return;
+            }
+
+            if (titleEl) titleEl.textContent = title;
+            if (msgEl) msgEl.textContent = message;
+
+            let borderTopColor = '#10b981';
+            let iconClass = 'ri-checkbox-circle-fill';
+            let iconWrapperClass = 'confirm-icon-wrapper success';
+            let btnClass = 'btn-success';
+
+            if (type === 'danger' || type === 'error') {
+                borderTopColor = '#e11d48';
+                iconClass = 'ri-close-circle-fill';
+                iconWrapperClass = 'confirm-icon-wrapper danger';
+                btnClass = 'btn-danger';
+            } else if (type === 'warning') {
+                borderTopColor = '#f59e0b';
+                iconClass = 'ri-error-warning-fill';
+                iconWrapperClass = 'confirm-icon-wrapper warning';
+                btnClass = 'btn-warning';
+            } else if (type === 'info') {
+                borderTopColor = '#0284c7';
+                iconClass = 'ri-information-fill';
+                iconWrapperClass = 'confirm-icon-wrapper info';
+                btnClass = 'btn-primary';
+            }
+
+            if (card) card.style.borderTop = `5px solid ${borderTopColor}`;
+            if (iconWrapper) iconWrapper.className = iconWrapperClass;
+            if (iconI) iconI.className = iconClass;
+            if (btnOk) {
+                btnOk.className = `btn ${btnClass}`;
+                btnOk.innerHTML = `<i class="ri-check-line"></i> ${confirmText}`;
+            }
+
+            this.openModal('modal-alert-dialog');
+
+            const handleOk = (e) => {
+                if (e) e.preventDefault();
+                cleanup();
+                this.closeModal('modal-alert-dialog');
+                resolve(true);
+            };
+
+            const cleanup = () => {
+                btnOk?.removeEventListener('click', handleOk);
+            };
+
+            btnOk?.addEventListener('click', handleOk);
+        });
+    }
+
+    updateBatchDeleteCountPreview() {
+        const gradeEl = document.getElementById('batch-delete-grade-select');
+        const roomEl = document.getElementById('batch-delete-room-select');
+        const previewEl = document.getElementById('batch-delete-count-preview');
+        if (!gradeEl || !roomEl || !previewEl) return;
+
+        const grade = gradeEl.value;
+        const room = roomEl.value;
+        const students = firebaseService.getStudents();
+        const matching = students.filter(s => {
+            const matchGrade = (grade === 'ALL' || !grade) ? true : (s.grade === grade);
+            const matchRoom = (room === 'ALL' || !room) ? true : (String(s.room) === String(room));
+            return matchGrade && matchRoom;
+        });
+
+        previewEl.textContent = `พบ ${matching.length} ราย`;
     }
 }
 

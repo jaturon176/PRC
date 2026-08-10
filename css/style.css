@@ -1000,6 +1000,11 @@ h1, h2, h3, h4, h5, h6 {
     color: #0284c7;
     box-shadow: 0 4px 20px rgba(2,132,199,0.20);
 }
+.confirm-icon-wrapper.success {
+    background: #d1fae5;
+    color: #059669;
+    box-shadow: 0 4px 20px rgba(16,185,129,0.25);
+}
 
 .modal-content {
     background: #ffffff;

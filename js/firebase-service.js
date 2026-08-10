@@ -234,6 +234,28 @@ class FirebaseService {
         return true;
     }
 
+    async deleteStudentsBatch(grade, room) {
+        let students = this.getStudents();
+        let toDelete = students.filter(s => {
+            const matchGrade = (!grade || grade === 'ALL') ? true : (s.grade === grade);
+            const matchRoom = (!room || room === 'ALL') ? true : (String(s.room) === String(room));
+            return matchGrade && matchRoom;
+        });
+
+        const deleteIds = new Set(toDelete.map(s => s.id));
+        students = students.filter(s => !deleteIds.has(s.id));
+
+        this.setCache(CONFIG.STORAGE_KEYS.STUDENTS, students);
+        window.dispatchEvent(new CustomEvent('studentsUpdated', { detail: students }));
+
+        if (this.isOnline) {
+            const cloudObject = {};
+            students.forEach(s => { cloudObject[s.id] = s; });
+            await this.cloudPut(CONFIG.FIREBASE.ENDPOINTS.STUDENTS, cloudObject);
+        }
+        return toDelete.length;
+    }
+
     // 1.5 Teachers
     getTeachers() {
         return this.getCache(CONFIG.STORAGE_KEYS.TEACHERS) || [];
