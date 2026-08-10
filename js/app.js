@@ -849,37 +849,113 @@ class Application {
 
     // --- Render Data Views ---
 
+    updateRoomFilterDropdown() {
+        const roomSelect = document.getElementById('student-room-filter');
+        if (!roomSelect) return;
+
+        const selectedGrade = document.getElementById('student-grade-filter')?.value || '';
+        const currentSelectedRoom = roomSelect.value;
+        const students = firebaseService.getStudents() || [];
+
+        let filteredStudents = students;
+        if (selectedGrade) {
+            filteredStudents = students.filter(s => s.grade === selectedGrade || `${s.grade}/${s.room}` === selectedGrade);
+        }
+
+        const roomsSet = new Set();
+        filteredStudents.forEach(s => {
+            if (s.room !== undefined && s.room !== null && String(s.room).trim() !== '') {
+                roomsSet.add(String(s.room).trim());
+            }
+        });
+
+        const sortedRooms = Array.from(roomsSet).sort((a, b) => {
+            const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+            const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+            return numA - numB;
+        });
+
+        roomSelect.innerHTML = '<option value="">-- เลือกห้องทั้งหมด --</option>';
+        sortedRooms.forEach(room => {
+            const option = document.createElement('option');
+            option.value = room;
+            option.textContent = `ห้อง ${room}`;
+            if (room === currentSelectedRoom) {
+                option.selected = true;
+            }
+            roomSelect.appendChild(option);
+        });
+    }
+
     renderStudentList() {
         const tbody = document.getElementById('table-students-body');
         if (!tbody) return;
 
+        // Populate room filter options dynamically based on available data
+        this.updateRoomFilterDropdown();
+
         let students = firebaseService.getStudents();
         const search = document.getElementById('student-search-input')?.value.toLowerCase() || '';
         const gradeFilter = document.getElementById('student-grade-filter')?.value || '';
+        const roomFilter = document.getElementById('student-room-filter')?.value || '';
 
         if (search) {
             students = students.filter(s => 
-                s.fullName.toLowerCase().includes(search) || 
-                s.studentId.includes(search)
+                (s.fullName && s.fullName.toLowerCase().includes(search)) || 
+                (s.studentId && String(s.studentId).includes(search))
             );
         }
         if (gradeFilter) {
-            students = students.filter(s => s.grade === gradeFilter);
+            students = students.filter(s => s.grade === gradeFilter || `${s.grade}/${s.room}` === gradeFilter);
         }
+        if (roomFilter) {
+            students = students.filter(s => String(s.room).trim() === String(roomFilter).trim());
+        }
+
+        // Sort students NUMERICALLY: Grade level -> Room number -> Student Number (1, 2, 3, 4, 5... 10, 11)
+        const getGradeOrder = (g) => {
+            if (!g) return 99;
+            const str = String(g).trim();
+            if (str.includes('ม.1')) return 1;
+            if (str.includes('ม.2')) return 2;
+            if (str.includes('ม.3')) return 3;
+            if (str.includes('ม.4')) return 4;
+            if (str.includes('ม.5')) return 5;
+            if (str.includes('ม.6')) return 6;
+            if (str.includes('ปวช.1')) return 7;
+            if (str.includes('ปวช.2')) return 8;
+            if (str.includes('ปวช.3')) return 9;
+            return 10;
+        };
+
+        students.sort((a, b) => {
+            const gA = getGradeOrder(a.grade);
+            const gB = getGradeOrder(b.grade);
+            if (gA !== gB) return gA - gB;
+
+            const rA = parseInt(String(a.room || '').replace(/\D/g, ''), 10) || 0;
+            const rB = parseInt(String(b.room || '').replace(/\D/g, ''), 10) || 0;
+            if (rA !== rB) return rA - rB;
+
+            const numA = parseInt(String(a.number || '0').replace(/\D/g, ''), 10) || 0;
+            const numB = parseInt(String(b.number || '0').replace(/\D/g, ''), 10) || 0;
+            return numA - numB;
+        });
 
         tbody.innerHTML = '';
         if (students.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b;">ไม่พบข้อมูลนักเรียน</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b; padding:24px;">ไม่พบข้อมูลนักเรียน</td></tr>';
             return;
         }
 
         students.forEach(s => {
             const tr = document.createElement('tr');
+            const displayName = s.fullName ? (s.prefix && !s.fullName.startsWith(s.prefix) ? `${s.prefix}${s.fullName}` : s.fullName) : '-';
             tr.innerHTML = `
-                <td><strong style="color:#38bdf8;">${s.studentId}</strong></td>
-                <td>${s.prefix || ''}${s.fullName}</td>
+                <td><strong style="color:#0284c7;">${s.studentId || '-'}</strong></td>
+                <td>${displayName}</td>
                 <td><span class="badge badge-normal">${s.grade}/${s.room}</span></td>
-                <td>${s.number}</td>
+                <td>${s.number || '-'}</td>
                 <td>${s.phone || '-'}</td>
                 <td>${s.advisors || s.advisorTeachers || s.guardian || '-'}</td>
                 <td>
