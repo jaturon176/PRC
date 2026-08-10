@@ -224,45 +224,38 @@ class FirebaseService {
     }
 
     async saveStudentsBatch(newStudentsList) {
-        const students = this.getStudents();
-        const map = new Map();
-
-        // 1. Index current local students by studentId (or id)
-        students.forEach(s => {
-            const key = s.studentId || s.id;
-            if (key) map.set(key, s);
-        });
-
-        // 2. Insert/Update new imported batch students
+        let students = this.getStudents();
         const now = new Date().toISOString();
+
         newStudentsList.forEach((s, idx) => {
             if (!s.id) s.id = 'STD_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4);
             s.updatedAt = now;
-            const key = s.studentId || s.id;
-            map.set(key, s);
+
+            const sIdStr = String(s.studentId || '').trim();
+            const index = students.findIndex(existing => {
+                if (existing.id === s.id) return true;
+                if (sIdStr && existing.studentId && String(existing.studentId).trim() === sIdStr) return true;
+                return false;
+            });
+
+            if (index >= 0) {
+                students[index] = { ...students[index], ...s };
+            } else {
+                students.push(s);
+            }
         });
 
-        const merged = Array.from(map.values());
-
-        // 3. Save merged data to LocalStorage FIRST
-        this.setCache(CONFIG.STORAGE_KEYS.STUDENTS, merged);
-
-        // 4. Mark last save time to prevent cloud sync from overwriting for 15 seconds
+        this.setCache(CONFIG.STORAGE_KEYS.STUDENTS, students);
         this._lastSaveTime = Date.now();
+        window.dispatchEvent(new CustomEvent('studentsUpdated', { detail: students }));
 
-        // 5. Dispatch update event
-        window.dispatchEvent(new CustomEvent('studentsUpdated', { detail: merged }));
-
-        // 6. Sync to cloud in background after short delay
         if (this.isOnline) {
-            setTimeout(async () => {
-                const cloudObject = {};
-                merged.forEach(s => { cloudObject[s.id] = s; });
-                await this.cloudPut(CONFIG.FIREBASE.ENDPOINTS.STUDENTS, cloudObject);
-                console.log(`[FirebaseService] Synced ${merged.length} students to cloud.`);
-            }, 500);
+            const cloudObject = {};
+            students.forEach(s => { cloudObject[s.id] = s; });
+            await this.cloudPut(CONFIG.FIREBASE.ENDPOINTS.STUDENTS, cloudObject);
+            console.log(`[FirebaseService] Synced ${students.length} students to cloud.`);
         }
-        return merged;
+        return students;
     }
 
 

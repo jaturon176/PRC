@@ -5,13 +5,13 @@
 
 class CSVImporter {
     constructor() {
-        this.sampleTemplateHeaders = "เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง\n";
+        this.sampleTemplateHeaders = "เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง,ครูที่ปรึกษา\n";
         this.sampleRows = [
-            "1,66001,นายสมชาย สายชล,ม.1/1\n",
-            "2,66002,นางสาวสมหญิง สุขใจ,ม.1/1\n",
-            "1,66003,นายวิชัย ดีเลิศ,ม.1/2\n",
-            "2,66004,นายอนันต์ ชัยชนะ,ม.1/2\n",
-            "1,66005,นางสาวพิมพ์มาดา รักดี,ม.2/1\n"
+            "1,66001,นายสมชาย สายชล,ม.1/1,นายบรรจง ทองกระจ่าย\n",
+            "2,66002,นางสาวสมหญิง สุขใจ,ม.1/1,นายบรรจง ทองกระจ่าย\n",
+            "1,66003,นายวิชัย ดีเลิศ,ม.1/2,นายอนันต์ ชัยชนะ\n",
+            "2,66004,นายอนันต์ ชัยชนะ,ม.1/2,นายอนันต์ ชัยชนะ\n",
+            "1,66005,นางสาวพิมพ์มาดา รักดี,ม.2/1,นางสมศรี ใจดี\n"
         ];
     }
 
@@ -54,7 +54,7 @@ class CSVImporter {
 
     /**
      * Parse CSV File input for Students
-     * Headers: เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง
+     * Headers: เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง,ครูที่ปรึกษา
      * @param {File} file 
      * @param {Array<Object>} existingTeachers 
      * @returns {Promise<Array<Object>>}
@@ -87,8 +87,18 @@ class CSVImporter {
                             let room = '1';
                             let advisors = '';
 
-                            // Format 4+ cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3)
-                            if (cols.length >= 4) {
+                            // Format 5+ cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3), ครูที่ปรึกษา(4)
+                            if (cols.length >= 5) {
+                                number = cols[0].trim();
+                                studentId = cols[1].trim();
+                                fullName = cols[2].trim();
+                                const parsedGR = this.parseGradeAndRoom(cols[3]);
+                                grade = parsedGR.grade;
+                                room = parsedGR.room;
+                                advisors = cols[4].trim();
+                            }
+                            // Format 4 cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3)
+                            else if (cols.length === 4) {
                                 number = cols[0].trim();
                                 studentId = cols[1].trim();
                                 fullName = cols[2].trim();
@@ -113,19 +123,6 @@ class CSVImporter {
                                 room = parsedGR.room;
                                 number = i.toString();
                                 studentId = `STD_${Date.now()}_${i}`;
-                            }
-
-                            // Auto-match advisor teachers from existing system data
-                            if (!advisors && existingTeachers && existingTeachers.length > 0) {
-                                const targetRoomKey = `${grade}/${room}`; // e.g. "ม.1/2"
-                                const matchedTeachers = existingTeachers.filter(t => {
-                                    if (!t.responsibleRoom) return false;
-                                    const tRoom = String(t.responsibleRoom).trim();
-                                    return tRoom === targetRoomKey || tRoom.includes(targetRoomKey);
-                                });
-                                if (matchedTeachers.length > 0) {
-                                    advisors = matchedTeachers.map(t => t.fullName).join(', ');
-                                }
                             }
 
                             if (fullName || studentId) {
