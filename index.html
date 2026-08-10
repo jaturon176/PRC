@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบดูแลช่วยเหลือนักเรียน (Student Care and Assistance System)</title>
-    <meta name="description" content="ระบบดูแลช่วยเหลือนักเรียนสำหรับงานกิจการนักเรียน คัดกรอง ส่งเสริมพัฒนา ป้องกันแก้ปัญหา และส่งต่อ ครอบคลุม ม.1-ม.6 และ ปวช.1-ปวช.3">
-    
+    <title>PR Care+ | ระบบดูแลช่วยเหลือนักเรียน โรงเรียนพนมดงรักวิทยา</title>
+    <meta name="description" content="PR Care+ ระบบดูแลช่วยเหลือนักเรียน โรงเรียนพนมดงรักวิทยา คัดกรอง ส่งเสริมพัฒนา ป้องกันแก้ปัญหา และส่งต่อ ครอบคลุม ม.1-ม.6 และ ปวช.1-ปวช.3">
+    <meta name="theme-color" content="#881337">
+
+    <!-- Preload Critical CSS -->
+    <link rel="preload" href="css/style.css?v=1.1" as="style">
+
     <!-- Remix Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
     
@@ -16,8 +20,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- Custom Futuristic Style -->
-    <link rel="stylesheet" href="css/style.css?v=2026.1.0">
+    <!-- Custom Style (v1.1 - Modern Light Theme) -->
+    <link rel="stylesheet" href="css/style.css?v=1.1">
 </head>
 <body>
     <!-- DEDICATED FULLSCREEN LOGIN PAGE (Matching User Reference Image Design) -->
@@ -26,7 +30,7 @@
             <!-- Left Branding & Feature Highlights Side -->
             <div class="login-left-banner">
                 <div class="login-logo-wrapper">
-                    <img src="assets/logo_prcare.png" alt="PR Care+ Logo" class="login-logo-img">
+                    <img src="assets/logo_prcare.png" alt="PR Care+ Logo" class="login-logo-img" style="max-height:130px;width:auto;max-width:220px;display:block;object-fit:contain;">
                 </div>
                 <h1 class="login-title-main">PR Care+</h1>
                 <div class="login-title-sub">ระบบดูแลช่วยเหลือนักเรียน<br>โรงเรียนพนมดงรักวิทยา</div>
@@ -123,7 +127,7 @@
             </ul>
 
             <div style="padding: 18px 14px; font-size: 1rem; color: #ffffff; font-weight: 600; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.2); letter-spacing: 0.3px; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
-                © 2026 PR-Care+ Developed by Krunoii v1.0
+                &copy; 2026 PR-Care+ Developed by Krunoii v1.1
             </div>
         </aside>
 
@@ -141,12 +145,12 @@
 
                 <div class="header-right">
                     <div class="user-profile-btn" id="btn-open-login">
-                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=teacher" class="user-avatar" id="user-avatar" alt="Avatar">
+                        <div class="user-avatar" id="user-avatar" style="display:flex;align-items:center;justify-content:center;"><i class="ri-user-3-fill" style="font-size:1.1rem;"></i></div>
                         <div class="user-info">
                             <div class="user-name" id="user-profile-name">ครูสมศักดิ์ รักเรียน</div>
                             <div class="user-role-badge" id="user-role-badge">👨‍🏫 ครูกิจการนักเรียน</div>
                         </div>
-                        <i class="ri-arrow-down-s-line" style="color: var(--text-muted);"></i>
+                        <i class="ri-arrow-down-s-line" style="color: rgba(255,255,255,0.7);"></i>
                     </div>
                     <button class="btn btn-secondary btn-sm" id="btn-logout" title="ออกจากระบบ"><i class="ri-logout-box-r-line"></i></button>
                 </div>
