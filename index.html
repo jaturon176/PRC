@@ -426,11 +426,10 @@
                         <input type="text" class="form-control" id="teacher-search-input" placeholder="🔍 ค้นหาด้วย ชื่อ-นามสกุล, รหัสครู หรือกลุ่มสาระ...">
                         <select class="form-select" id="teacher-position-filter">
                             <option value="">-- เลือกตำแหน่งทั้งหมด --</option>
-                            <option value="ครูกิจการนักเรียน">ครูกิจการนักเรียน</option>
-                            <option value="ครูประจำชั้น">ครูประจำชั้น / ครูที่ปรึกษา</option>
-                            <option value="ครูแนะแนว">ครูแนะแนว</option>
-                            <option value="หัวหน้างานปกครอง">หัวหน้างานปกครอง</option>
-                            <option value="ผู้บริหาร">ผู้บริหาร / ผู้อำนวยการ</option>
+                            <option value="ผู้อำนวยการ">ผู้อำนวยการ</option>
+                            <option value="รองผู้อำนวยการ">รองผู้อำนวยการ</option>
+                            <option value="ครูที่ปรึกษา">ครูที่ปรึกษา</option>
+                            <option value="ครู">ครู</option>
                         </select>
                     </div>
 
@@ -1006,30 +1005,17 @@
             <form id="form-teacher">
                 <input type="hidden" id="teacher-id-input">
                 <div class="modal-body">
-                    <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 12px;">
-                        <div class="form-group">
-                            <label class="form-label">คำนำหน้า</label>
-                            <select class="form-select" id="tch-prefix">
-                                <option value="นาย">นาย</option>
-                                <option value="นาง">นาง</option>
-                                <option value="นางสาว">นางสาว</option>
-                                <option value="ดร.">ดร.</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">ชื่อ - นามสกุล *</label>
-                            <input type="text" class="form-control" id="tch-fullname" required placeholder="เช่น สมศักดิ์ รักเรียน">
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">คำนำหน้า ชื่อ - นามสกุล *</label>
+                        <input type="text" class="form-control" id="tch-fullname" required placeholder="เช่น นายสมศักดิ์ รักเรียน">
                     </div>
                     <div class="form-group">
                         <label class="form-label">ตำแหน่ง *</label>
                         <select class="form-select" id="tch-position" required>
-                            <option value="ครูกิจการนักเรียน">ครูกิจการนักเรียน</option>
-                            <option value="ครูประจำชั้น">ครูประจำชั้น / ครูที่ปรึกษา</option>
-                            <option value="ครูแนะแนว">ครูแนะแนว</option>
-                            <option value="หัวหน้างานปกครอง">หัวหน้างานปกครอง</option>
-                            <option value="ครูผู้สอน">ครูผู้สอน</option>
-                            <option value="ผู้บริหาร">ผู้บริหาร / ผู้อำนวยการ</option>
+                            <option value="ผู้อำนวยการ">ผู้อำนวยการ</option>
+                            <option value="รองผู้อำนวยการ">รองผู้อำนวยการ</option>
+                            <option value="ครูที่ปรึกษา">ครูที่ปรึกษา</option>
+                            <option value="ครู">ครู</option>
                         </select>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">

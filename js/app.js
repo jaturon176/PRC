@@ -148,11 +148,11 @@ class Application {
         if (!teachers || teachers.length === 0) {
             console.log('[App] Loading default sample Teacher data...');
             const sampleTeachers = [
-                { prefix: 'นาย', fullName: 'สมศักดิ์ รักเรียน', position: 'ครูกิจการนักเรียน', responsibleRoom: 'ม.1/1', phone: '081-222-3333' },
-                { prefix: 'นาง', fullName: 'สมศรี ใจดี', position: 'ครูประจำชั้น', responsibleRoom: 'ม.1/1', phone: '082-333-4444' },
-                { prefix: 'นาย', fullName: 'วิเชียร ดีเลิศ', position: 'ครูแนะแนว', responsibleRoom: 'ม.2/1', phone: '083-444-5555' },
-                { prefix: 'นาย', fullName: 'อนันต์ ชัยชนะ', position: 'หัวหน้างานปกครอง', responsibleRoom: 'ม.3/1', phone: '084-555-6666' },
-                { prefix: 'นางสาว', fullName: 'พิมพ์มาดา รักดี', position: 'ครูผู้สอน', responsibleRoom: 'ม.4/1', phone: '085-666-7777' }
+                { fullName: 'นายสมศักดิ์ รักเรียน', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/1', phone: '081-222-3333' },
+                { fullName: 'นางสมศรี ใจดี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/1', phone: '082-333-4444' },
+                { fullName: 'นายวิเชียร ดีเลิศ', position: 'ครู', responsibleRoom: 'ม.2/1', phone: '083-444-5555' },
+                { fullName: 'นายอนันต์ ชัยชนะ', position: 'รองผู้อำนวยการ', responsibleRoom: 'ม.3/1', phone: '084-555-6666' },
+                { fullName: 'นางสาวพิมพ์มาดา รักดี', position: 'ผู้อำนวยการ', responsibleRoom: 'ม.4/1', phone: '085-666-7777' }
             ];
             firebaseService.saveTeachersBatch(sampleTeachers);
         }
@@ -353,7 +353,6 @@ class Application {
             e.preventDefault();
             const teacher = {
                 id: document.getElementById('teacher-id-input').value || undefined,
-                prefix: document.getElementById('tch-prefix').value,
                 fullName: document.getElementById('tch-fullname').value.trim(),
                 position: document.getElementById('tch-position').value,
                 responsibleRoom: document.getElementById('tch-room').value.trim(),
@@ -973,8 +972,9 @@ class Application {
 
         teachers.forEach(t => {
             const tr = document.createElement('tr');
+            const displayName = t.fullName ? (t.prefix && !t.fullName.startsWith(t.prefix) ? `${t.prefix}${t.fullName}` : t.fullName) : '-';
             tr.innerHTML = `
-                <td><strong style="color:#0f172a;">${t.prefix || ''}${t.fullName}</strong></td>
+                <td><strong style="color:#0f172a;">${displayName}</strong></td>
                 <td><span class="badge badge-minor">${t.position}</span></td>
                 <td><span class="badge badge-normal">${t.responsibleRoom || t.responsibleGrade || '-'}</span></td>
                 <td>${t.phone || '-'}</td>
@@ -1011,9 +1011,9 @@ class Application {
         const t = teachers.find(item => item.id === id);
         if (t) {
             document.getElementById('teacher-id-input').value = t.id;
-            document.getElementById('tch-prefix').value = t.prefix || 'นาย';
-            document.getElementById('tch-fullname').value = t.fullName;
-            document.getElementById('tch-position').value = t.position;
+            const fullNameWithPrefix = t.fullName ? (t.prefix && !t.fullName.startsWith(t.prefix) ? `${t.prefix}${t.fullName}` : t.fullName) : '';
+            document.getElementById('tch-fullname').value = fullNameWithPrefix;
+            document.getElementById('tch-position').value = t.position || 'ครู';
             document.getElementById('tch-room').value = t.responsibleRoom || t.responsibleGrade || '';
             document.getElementById('tch-phone').value = t.phone || '';
             this.openModal('modal-teacher');
