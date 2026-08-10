@@ -409,32 +409,37 @@ class Application {
                     return;
                 }
 
-                const rooms = [...new Set(parsed.map(s => `${s.grade}/${s.room}`))];
-                console.log(`[App] CSV parsed ${parsed.length} students, rooms: ${rooms.join(', ')}`);
+                const firstStudent = parsed[0];
+                const targetGrade = this.normalizeGrade(firstStudent.grade) || 'ม.1';
+                const rooms = [...new Set(parsed.map(s => `ห้อง ${s.room}`))];
 
-                // Block event listener from overriding filter during our controlled import
                 this._skipStudentListRefresh = true;
-
                 const merged = await firebaseService.saveStudentsBatch(parsed);
-                console.log(`[App] Total students after merge: ${merged.length}`);
+                this._skipStudentListRefresh = false;
 
                 this.closeModal('modal-csv-import');
 
-                // Reset room filter so ALL rooms appear after import
-                const roomFilter = document.getElementById('student-room-filter');
-                if (roomFilter) roomFilter.value = '';
-                const gradeFilter = document.getElementById('student-grade-filter');
-                if (gradeFilter && parsed[0]) gradeFilter.value = parsed[0].grade || '';
+                // Explicitly set grade filter to imported grade and reset room filter to show ALL students
+                const gradeSelect = document.getElementById('student-grade-filter');
+                if (gradeSelect) {
+                    for (let opt of gradeSelect.options) {
+                        if (this.normalizeGrade(opt.value) === targetGrade) {
+                            gradeSelect.value = opt.value;
+                            break;
+                        }
+                    }
+                }
 
-                // Now render with correct filters
-                this._skipStudentListRefresh = false;
+                const roomSelect = document.getElementById('student-room-filter');
+                if (roomSelect) roomSelect.value = '';
+
                 this.renderStudentList();
                 this.renderDashboard();
                 this.updateStudentDropdowns();
 
                 await this.alertDialog({
                     title: 'นำเข้าข้อมูลนักเรียนสำเร็จ',
-                    message: `นำเข้าข้อมูลนักเรียนสำเร็จจำนวน ${parsed.length} คน จากห้อง ${rooms.join(', ')} (รวมทั้งหมด ${merged.length} คนในระบบ)`,
+                    message: `นำเข้าข้อมูลนักเรียนสำเร็จจำนวน ${parsed.length} คน (${rooms.join(', ')}) รวมทั้งสิ้น ${merged.length} คนในระบบ`,
                     type: 'success'
                 });
             } catch (err) {

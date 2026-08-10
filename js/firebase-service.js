@@ -283,9 +283,22 @@ class FirebaseService {
 
     async deleteStudentsBatch(grade, room) {
         let students = this.getStudents();
+        const normTargetGrade = (!grade || grade === 'ALL') ? 'ALL' : String(grade).trim().replace(/["']/g, '');
+
         let toDelete = students.filter(s => {
-            const matchGrade = (!grade || grade === 'ALL') ? true : (s.grade === grade);
-            const matchRoom = (!room || room === 'ALL') ? true : (String(s.room) === String(room));
+            let sGradeNorm = String(s.grade || '').trim().replace(/["']/g, '');
+            if (sGradeNorm.includes('ม.1') || sGradeNorm.includes('มัธยมศึกษาปีที่ 1')) sGradeNorm = 'ม.1';
+            else if (sGradeNorm.includes('ม.2') || sGradeNorm.includes('มัธยมศึกษาปีที่ 2')) sGradeNorm = 'ม.2';
+            else if (sGradeNorm.includes('ม.3') || sGradeNorm.includes('มัธยมศึกษาปีที่ 3')) sGradeNorm = 'ม.3';
+            else if (sGradeNorm.includes('ม.4') || sGradeNorm.includes('มัธยมศึกษาปีที่ 4')) sGradeNorm = 'ม.4';
+            else if (sGradeNorm.includes('ม.5') || sGradeNorm.includes('มัธยมศึกษาปีที่ 5')) sGradeNorm = 'ม.5';
+            else if (sGradeNorm.includes('ม.6') || sGradeNorm.includes('มัธยมศึกษาปีที่ 6')) sGradeNorm = 'ม.6';
+            else if (sGradeNorm.includes('ปวช.1')) sGradeNorm = 'ปวช.1';
+            else if (sGradeNorm.includes('ปวช.2')) sGradeNorm = 'ปวช.2';
+            else if (sGradeNorm.includes('ปวช.3')) sGradeNorm = 'ปวช.3';
+
+            const matchGrade = (normTargetGrade === 'ALL') ? true : (sGradeNorm.includes(normTargetGrade) || normTargetGrade.includes(sGradeNorm));
+            const matchRoom = (!room || room === 'ALL') ? true : (String(s.room).trim() === String(room).trim());
             return matchGrade && matchRoom;
         });
 
@@ -293,6 +306,7 @@ class FirebaseService {
         students = students.filter(s => !deleteIds.has(s.id));
 
         this.setCache(CONFIG.STORAGE_KEYS.STUDENTS, students);
+        this._lastSaveTime = Date.now();
         window.dispatchEvent(new CustomEvent('studentsUpdated', { detail: students }));
 
         if (this.isOnline) {
