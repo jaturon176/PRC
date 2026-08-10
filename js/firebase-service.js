@@ -33,16 +33,19 @@ class FirebaseService {
     }
 
     initSync() {
-        // Initial Fetch from Cloud when online
+        // Track last time we saved data locally to prevent cloud overwriting it immediately
+        this._lastSaveTime = 0;
+
+        // Initial Fetch from Cloud when online (delay 2s to let local state settle first)
         if (this.isOnline) {
-            this.syncAllFromCloud();
+            setTimeout(() => this.syncAllFromCloud(), 2000);
         }
-        // Poll Firebase REST endpoint every 3 seconds for zero-delay multi-device live sync
+        // Poll Firebase REST endpoint every 30 seconds (not 3s - prevents overwriting new local saves)
         this.syncInterval = setInterval(() => {
             if (this.isOnline) {
                 this.syncAllFromCloud();
             }
-        }, 3000);
+        }, 30000);
     }
 
     // --- Helper: LocalStorage Fast Cache (0ms) ---
@@ -139,7 +142,16 @@ class FirebaseService {
             { key: CONFIG.STORAGE_KEYS.ACTIVITIES, endpoint: CONFIG.FIREBASE.ENDPOINTS.ACTIVITIES, event: 'activitiesUpdated', idKey: 'id' }
         ];
 
+        // Guard: skip syncing students if we just saved locally within 15 seconds
+        const recentSave = this._lastSaveTime && (Date.now() - this._lastSaveTime < 15000);
+
         for (const item of collections) {
+            // Skip student sync if we recently saved to prevent overwriting new imports
+            if (recentSave && item.key === CONFIG.STORAGE_KEYS.STUDENTS) {
+                console.log('[FirebaseService] Skipping student cloud sync - local save was recent');
+                continue;
+            }
+
             const cloudData = await this.cloudGet(item.endpoint);
             if (cloudData !== null) {
                 let itemsList = [];
@@ -222,24 +234,37 @@ class FirebaseService {
         });
 
         // 2. Insert/Update new imported batch students
+        const now = new Date().toISOString();
         newStudentsList.forEach((s, idx) => {
             if (!s.id) s.id = 'STD_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4);
-            s.updatedAt = new Date().toISOString();
+            s.updatedAt = now;
             const key = s.studentId || s.id;
             map.set(key, s);
         });
 
         const merged = Array.from(map.values());
+
+        // 3. Save merged data to LocalStorage FIRST
         this.setCache(CONFIG.STORAGE_KEYS.STUDENTS, merged);
+
+        // 4. Mark last save time to prevent cloud sync from overwriting for 15 seconds
+        this._lastSaveTime = Date.now();
+
+        // 5. Dispatch update event
         window.dispatchEvent(new CustomEvent('studentsUpdated', { detail: merged }));
 
+        // 6. Sync to cloud in background after short delay
         if (this.isOnline) {
-            const cloudObject = {};
-            merged.forEach(s => { cloudObject[s.id] = s; });
-            await this.cloudPut(CONFIG.FIREBASE.ENDPOINTS.STUDENTS, cloudObject);
+            setTimeout(async () => {
+                const cloudObject = {};
+                merged.forEach(s => { cloudObject[s.id] = s; });
+                await this.cloudPut(CONFIG.FIREBASE.ENDPOINTS.STUDENTS, cloudObject);
+                console.log(`[FirebaseService] Synced ${merged.length} students to cloud.`);
+            }, 500);
         }
         return merged;
     }
+
 
     async deleteStudent(studentId) {
         let students = this.getStudents();
