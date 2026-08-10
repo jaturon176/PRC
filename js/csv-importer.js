@@ -5,13 +5,13 @@
 
 class CSVImporter {
     constructor() {
-        this.sampleTemplateHeaders = "เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง,ครูที่ปรึกษา\n";
+        this.sampleTemplateHeaders = "เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น,ห้อง,ครูที่ปรึกษา\n";
         this.sampleRows = [
-            "1,66001,นายสมชาย สายชล,ม.1/1,นายบรรจง ทองกระจ่าย\n",
-            "2,66002,นางสาวสมหญิง สุขใจ,ม.1/1,นายบรรจง ทองกระจ่าย\n",
-            "1,66003,นายวิชัย ดีเลิศ,ม.1/2,นายอนันต์ ชัยชนะ\n",
-            "2,66004,นายอนันต์ ชัยชนะ,ม.1/2,นายอนันต์ ชัยชนะ\n",
-            "1,66005,นางสาวพิมพ์มาดา รักดี,ม.2/1,นางสมศรี ใจดี\n"
+            "1,66001,นายสมชาย สายชล,ม.1,1,นายบรรจง ทองกระจ่าย\n",
+            "2,66002,นางสาวสมหญิง สุขใจ,ม.1,1,นายบรรจง ทองกระจ่าย\n",
+            "1,66003,นายวิชัย ดีเลิศ,ม.1,2,นายอนันต์ ชัยชนะ\n",
+            "2,66004,นายอนันต์ ชัยชนะ,ม.1,2,นายอนันต์ ชัยชนะ\n",
+            "1,66005,นางสาวพิมพ์มาดา รักดี,ม.2,1,นางสมศรี ใจดี\n"
         ];
     }
 
@@ -28,6 +28,21 @@ class CSVImporter {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+
+    normalizeGrade(g) {
+        if (!g) return 'ม.1';
+        const str = String(g).trim().replace(/["']/g, '');
+        if (str.includes('ม.1') || str.includes('มัธยมศึกษาปีที่ 1') || str === '1') return 'ม.1';
+        if (str.includes('ม.2') || str.includes('มัธยมศึกษาปีที่ 2') || str === '2') return 'ม.2';
+        if (str.includes('ม.3') || str.includes('มัธยมศึกษาปีที่ 3') || str === '3') return 'ม.3';
+        if (str.includes('ม.4') || str.includes('มัธยมศึกษาปีที่ 4') || str === '4') return 'ม.4';
+        if (str.includes('ม.5') || str.includes('มัธยมศึกษาปีที่ 5') || str === '5') return 'ม.5';
+        if (str.includes('ม.6') || str.includes('มัธยมศึกษาปีที่ 6') || str === '6') return 'ม.6';
+        if (str.includes('ปวช.1')) return 'ปวช.1';
+        if (str.includes('ปวช.2')) return 'ปวช.2';
+        if (str.includes('ปวช.3')) return 'ปวช.3';
+        return str.startsWith('ม.') ? str : `ม.${str}`;
     }
 
     parseGradeAndRoom(str) {
@@ -61,7 +76,10 @@ class CSVImporter {
 
     /**
      * Parse CSV File input for Students
-     * Headers: เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง,ครูที่ปรึกษา
+     * Headers: 
+     * 6 cols: เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น,ห้อง,ครูที่ปรึกษา
+     * 5 cols: เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง,ครูที่ปรึกษา OR เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น,ห้อง
+     * 4 cols: เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น/ห้อง
      * @param {File} file 
      * @param {Array<Object>} existingTeachers 
      * @returns {Promise<Array<Object>>}
@@ -94,15 +112,32 @@ class CSVImporter {
                             let room = '1';
                             let advisors = '';
 
-                            // Format 5+ cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3), ครูที่ปรึกษา(4)
-                            if (cols.length >= 5) {
+                            // Format 6+ cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น(3), ห้อง(4), ครูที่ปรึกษา(5)
+                            if (cols.length >= 6) {
                                 number = cols[0].trim();
                                 studentId = cols[1].trim();
                                 fullName = cols[2].trim();
-                                const parsedGR = this.parseGradeAndRoom(cols[3]);
-                                grade = parsedGR.grade;
-                                room = parsedGR.room;
-                                advisors = cols[4].trim();
+                                grade = this.normalizeGrade(cols[3]);
+                                room = cols[4].replace(/\D/g, '') || cols[4].trim();
+                                advisors = cols[5].trim();
+                            }
+                            // Format 5 cols: (เลขที่, รหัสประจำตัว, ชื่อ-สกุล, ระดับชั้น/ห้อง, ครูที่ปรึกษา) OR (เลขที่, รหัสประจำตัว, ชื่อ-สกุล, ระดับชั้น, ห้อง)
+                            else if (cols.length === 5) {
+                                number = cols[0].trim();
+                                studentId = cols[1].trim();
+                                fullName = cols[2].trim();
+                                const col3Str = cols[3].trim();
+                                const col4Str = cols[4].trim();
+
+                                if (col3Str.includes('/') || col3Str.includes('ห้อง')) {
+                                    const parsedGR = this.parseGradeAndRoom(col3Str);
+                                    grade = parsedGR.grade;
+                                    room = parsedGR.room;
+                                    advisors = col4Str;
+                                } else {
+                                    grade = this.normalizeGrade(col3Str);
+                                    room = col4Str.replace(/\D/g, '') || col4Str;
+                                }
                             }
                             // Format 4 cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3)
                             else if (cols.length === 4) {
