@@ -389,16 +389,21 @@ class Application {
             e.preventDefault();
             const fileInput = document.getElementById('csv-file-input');
             if (fileInput.files.length === 0) {
-                alert('กรุณาเลือกไฟล์ CSV สำหรับนำเข้า');
+                await this.alertDialog({ title: 'คำเตือน', message: 'กรุณาเลือกไฟล์ CSV สำหรับนำเข้า', type: 'warning' });
                 return;
             }
             try {
-                const parsed = await csvImporter.parseCSV(fileInput.files[0]);
+                const teachers = firebaseService.getTeachers() || [];
+                const parsed = await csvImporter.parseCSV(fileInput.files[0], teachers);
                 await firebaseService.saveStudentsBatch(parsed);
                 this.closeModal('modal-csv-import');
-                alert(`นำเข้าข้อมูลนักเรียนสำเร็จจำนวน ${parsed.length} คน`);
+                await this.alertDialog({
+                    title: 'นำเข้าข้อมูลนักเรียนสำเร็จ',
+                    message: `นำเข้าข้อมูลนักเรียนสำเร็จจำนวน ${parsed.length} คน (แมตช์ครูที่ปรึกษาจากระบบให้อัตโนมัติ)`,
+                    type: 'success'
+                });
             } catch (err) {
-                alert('เกิดข้อผิดพลาดในการอ่านไฟล์ CSV: ' + err.message);
+                await this.alertDialog({ title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการอ่านไฟล์ CSV: ' + err.message, type: 'danger' });
             }
         });
 
