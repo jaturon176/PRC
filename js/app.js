@@ -190,7 +190,14 @@ class Application {
             });
             if (confirmed) {
                 authManager.logout();
-                this.switchPage('dashboard');
+                const loginView = document.getElementById('login-screen-view');
+                if (loginView) {
+                    loginView.classList.remove('hidden');
+                    loginView.style.display = 'flex';
+                    loginView.style.opacity = '1';
+                    loginView.style.visibility = 'visible';
+                    loginView.style.pointerEvents = 'auto';
+                }
             }
         });
 

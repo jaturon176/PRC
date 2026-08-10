@@ -28,17 +28,7 @@ class AuthManager {
         } catch (e) {
             console.error('[AuthManager] Session load error:', e);
         }
-
-        // Persistent default active user session for instant access on reload/refresh
-        const defaultUser = {
-            id: 'ADM_01',
-            name: 'ผู้ดูแลระบบ (Admin)',
-            role: CONFIG.ROLES.ADMIN,
-            roleTitle: CONFIG.ROLE_NAMES_TH.admin,
-            avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin'
-        };
-        localStorage.setItem(CONFIG.STORAGE_KEYS.AUTH_USER, JSON.stringify(defaultUser));
-        return defaultUser;
+        return null;
     }
 
     /**
@@ -156,8 +146,13 @@ class AuthManager {
         if (loginScreenView) {
             if (user) {
                 loginScreenView.classList.add('hidden');
+                loginScreenView.style.display = 'none';
             } else {
                 loginScreenView.classList.remove('hidden');
+                loginScreenView.style.display = 'flex';
+                loginScreenView.style.opacity = '1';
+                loginScreenView.style.visibility = 'visible';
+                loginScreenView.style.pointerEvents = 'auto';
             }
         }
 
@@ -180,7 +175,7 @@ class AuthManager {
             }
         });
 
-        // Hide Edit Buttons for Students (keep student-allowed visible)
+        // Hide Edit Buttons for Students
         document.querySelectorAll('.teacher-only, .admin-only').forEach(el => {
             if (role === 'student' && !el.classList.contains('student-allowed')) {
                 el.style.display = 'none';
