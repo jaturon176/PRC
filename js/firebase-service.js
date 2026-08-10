@@ -288,12 +288,16 @@ class FirebaseService {
     async saveTeachersBatch(newTeachersList) {
         const teachers = this.getTeachers();
         const map = new Map();
-        teachers.forEach(t => map.set(t.teacherId || t.id, t));
+        teachers.forEach(t => {
+            const key = t.id || t.fullName;
+            if (key) map.set(key, t);
+        });
 
-        newTeachersList.forEach(t => {
-            if (!t.id) t.id = 'TCH_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        newTeachersList.forEach((t, idx) => {
+            if (!t.id) t.id = 'TCH_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4);
             t.updatedAt = new Date().toISOString();
-            map.set(t.teacherId || t.id, t);
+            const key = t.id || t.fullName;
+            map.set(key, t);
         });
 
         const merged = Array.from(map.values());

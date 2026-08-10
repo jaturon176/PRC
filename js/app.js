@@ -16,13 +16,23 @@ class Application {
     async init() {
         console.log('[App] Initializing Student Care & Assistance System...');
 
-        // Auto Cache Bust on Version Bump
-        const currentVersion = CONFIG.SYSTEM_VERSION || '1.2';
+        // Auto Cache Bust & Purge Sample Data on Version Bump (v1.3)
+        const currentVersion = CONFIG.SYSTEM_VERSION || '1.3';
         const savedVersion = localStorage.getItem('prcare_app_ver');
         if (savedVersion !== currentVersion) {
-            console.log(`[App] Version bump detected (${savedVersion} -> ${currentVersion}). Refreshing cache...`);
+            console.log(`[App] Version bump detected (${savedVersion} -> ${currentVersion}). Purging sample dummy data...`);
             localStorage.setItem('prcare_app_ver', currentVersion);
-            localStorage.removeItem(CONFIG.STORAGE_KEYS.TEACHERS);
+
+            // Filter out legacy sample teachers
+            const sampleNames = ['นายมนัส เทศทอง', 'นายอนันต์ ชัยชนะ', 'นางสมศรี ใจดี', 'นางสาวพะลินี ลาภไธสง', 'นายธนบดี สอนตระกูล', 'นางสาวกนกพร สุขินดี', 'นายยศศวรรษ พิมพ์เก่า', 'นายรัชชวิจินันท์ ไทรคีพะเนาว์', 'นายธนบิต ดวงจาซี', 'นายชัชวาล สุขดี', 'นายสมศักดิ์ รักเรียน', 'นายวิเชียร ดีเลิศ', 'นางสาวพิมพ์มาดา รักดี'];
+            let teachers = firebaseService.getTeachers() || [];
+            teachers = teachers.filter(t => !sampleNames.includes(t.fullName));
+            firebaseService.setCache(CONFIG.STORAGE_KEYS.TEACHERS, teachers);
+
+            let students = firebaseService.getStudents() || [];
+            const sampleStdIds = ['66001', '66002', '66003', '66004', '66005', '66006', '66007', '66008', '66009'];
+            students = students.filter(s => !sampleStdIds.includes(s.studentId));
+            firebaseService.setCache(CONFIG.STORAGE_KEYS.STUDENTS, students);
         }
 
         // 1. Load Seed Data if database empty
@@ -95,81 +105,13 @@ class Application {
         this.updateStudentDropdowns();
     }
 
-    // --- Seed Data Loader ---
+    // --- Seed Data Loader (Disabled Sample Data Auto-Loader) ---
     checkAndLoadSeedData() {
-        const students = firebaseService.getStudents();
-        if (!students || students.length === 0) {
-            console.log('[App] Loading default sample Thai student data (ม.1-ม.6, ปวช.1-ปวช.3)...');
-            const sampleStudents = [
-                { studentId: '66001', prefix: 'นาย', fullName: 'สมชาย สายชล', grade: 'ม.1', room: '1', number: '1', phone: '081-234-5678', advisors: 'ครูสมศักดิ์ รักเรียน, ครูสมศรี ใจดี' },
-                { studentId: '66002', prefix: 'นางสาว', fullName: 'สมหญิง สุขใจ', grade: 'ม.2', room: '1', number: '2', phone: '089-876-5432', advisors: 'ครูวิเชียร ดีเลิศ' },
-                { studentId: '66003', prefix: 'นาย', fullName: 'วิชัย ดีเลิศ', grade: 'ม.3', room: '2', number: '5', phone: '082-111-2233', advisors: 'ครูอนันต์ ชัยชนะ, ครูพิมพ์ใจ รักดี' },
-                { studentId: '66004', prefix: 'นาย', fullName: 'อนันต์ ชัยชนะ', grade: 'ม.4', room: '1', number: '8', phone: '084-555-6677', advisors: 'ครูธนา มุ่งมั่น' },
-                { studentId: '66005', prefix: 'นางสาว', fullName: 'พิมพ์มาดา รักดี', grade: 'ม.5', room: '2', number: '12', phone: '086-777-8899', advisors: 'ครูเกรียงศักดิ์ ช่างกล' },
-                { studentId: '66006', prefix: 'นาย', fullName: 'ธนากร มุ่งมั่น', grade: 'ม.6', room: '1', number: '3', phone: '083-444-5566', advisors: 'ครูนพรัตน์ ฝีมือดี' },
-                { studentId: '66007', prefix: 'นาย', fullName: 'เกียรติศักดิ์ ช่างกล', grade: 'ปวช.1', room: '1', number: '4', phone: '085-111-9988', advisors: 'ครูสุภาพ สร้างสรรค์' },
-                { studentId: '66008', prefix: 'นาย', fullName: 'นพดล ฝีมือดี', grade: 'ปวช.2', room: '2', number: '10', phone: '087-333-2211', advisors: 'ครูกิตติ มั่นคง' },
-                { studentId: '66009', prefix: 'นางสาว', fullName: 'สุพรรษา สร้างสรรค์', grade: 'ปวช.3', room: '1', number: '7', phone: '089-000-1122', advisors: 'ครูกานดา สวยงาม' }
-            ];
-            firebaseService.saveStudentsBatch(sampleStudents);
-        }
-
-        const offenses = firebaseService.getOffenses();
-        if (!offenses || offenses.length === 0) {
-            const sampleOffenses = [
-                {
-                    id: 'OFF_SAMPLE_1',
-                    studentId: '66001',
-                    studentName: 'นายสมชาย สายชล',
-                    gradeRoom: 'ม.1/1',
-                    studentNumber: '1',
-                    level: 'minor',
-                    category: 'เข้าเรียนสาย/หนีเรียน',
-                    description: 'มาโรงเรียนสายเกิน 3 ครั้งในสัปดาห์เดียว',
-                    location: 'ประตูโรงเรียนด้านหน้า',
-                    incidentDate: new Date().toISOString().slice(0, 10),
-                    actionTaken: 'ว่ากล่าวตักเตือน และให้ทำกิจกรรมบำเพ็ญประโยชน์ 1 ชั่วโมง',
-                    recordedBy: 'ครูกิจการนักเรียน',
-                    referralType: 'internal'
-                },
-                {
-                    id: 'OFF_SAMPLE_2',
-                    studentId: '66007',
-                    studentName: 'นายเกียรติศักดิ์ ช่างกล',
-                    gradeRoom: 'ปวช.1/1',
-                    studentNumber: '4',
-                    level: 'moderate',
-                    category: 'พฤติกรรมความก้าวร้าว',
-                    description: 'มีปากเสียงทะเลาะวิวาทกับเพื่อนต่างวิทยาลัยบริเวณหน้าโรงเรียน',
-                    location: 'หน้าวิทยาลัย',
-                    incidentDate: new Date().toISOString().slice(0, 10),
-                    actionTaken: 'เชิญผู้ปกครองมารับทราบพฤติกรรม และทำทักท้วงลายทัศน์',
-                    recordedBy: 'หัวหน้างานปกครอง',
-                    referralType: 'external'
-                }
-            ];
-            sampleOffenses.forEach(o => firebaseService.saveOffense(o));
-        }
+        // Disabled sample student seed data as requested
     }
 
     checkAndLoadTeacherSeedData() {
-        const teachers = firebaseService.getTeachers();
-        if (!teachers || teachers.length === 0) {
-            console.log('[App] Loading default sample Teacher data...');
-            const sampleTeachers = [
-                { fullName: 'นายมนัส เทศทอง', position: 'ผู้อำนวยการ', responsibleRoom: '-', phone: '0617147864' },
-                { fullName: 'นายอนันต์ ชัยชนะ', position: 'รองผู้อำนวยการ', responsibleRoom: '-', phone: '0845556666' },
-                { fullName: 'นางสมศรี ใจดี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/1', phone: '0823334444' },
-                { fullName: 'นางสาวพะลินี ลาภไธสง', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/3', phone: '0910204240' },
-                { fullName: 'นายธนบดี สอนตระกูล', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/6', phone: '0925871006' },
-                { fullName: 'นางสาวกนกพร สุขินดี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/7', phone: '0823716171' },
-                { fullName: 'นายยศศวรรษ พิมพ์เก่า', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.2/5', phone: '0996353416' },
-                { fullName: 'นายรัชชวิจินันท์ ไทรคีพะเนาว์', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.3/2', phone: '0986141148' },
-                { fullName: 'นายธนบิต ดวงจาซี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.3/6', phone: '0916734226' },
-                { fullName: 'นายชัชวาล สุขดี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ปวช.2/1', phone: '0910713002' }
-            ];
-            firebaseService.saveTeachersBatch(sampleTeachers);
-        }
+        // Disabled sample teacher seed data as requested
     }
 
     // --- Navigation Router ---

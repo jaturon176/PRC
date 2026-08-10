@@ -184,31 +184,32 @@ class CSVImporter {
                     const parsedTeachers = [];
                     for (let i = 1; i < lines.length; i++) {
                         const cols = this.parseCSVLine(lines[i]);
-                        if (cols.length >= 2) {
-                            // Format: คำนำหน้า, ชื่อ-นามสกุล, ตำแหน่ง, ห้องเรียนที่รับผิดชอบ, เบอร์โทรศัพท์
-                            // OR Format: ชื่อ-นามสกุล, ตำแหน่ง, ห้องเรียนที่รับผิดชอบ, เบอร์โทรศัพท์
-                            let prefix = 'ครู';
-                            let fullName = cols[0] || '';
-                            let position = cols[1] || 'ครูผู้สอน';
-                            let responsibleRoom = cols[2] || '';
-                            let phone = cols[3] || '';
+                        if (cols.length >= 1 && cols[0].trim().length > 0) {
+                            let fullName = (cols[0] || '').trim();
+                            let position = (cols[1] || 'ครู').trim();
+                            let responsibleRoom = (cols[2] || '').trim();
+                            let phone = (cols[3] || '').trim();
 
-                            if (cols.length >= 5 || ['นาย', 'นาง', 'นางสาว', 'ดร.'].includes((cols[0] || '').trim())) {
-                                prefix = (cols[0] || 'นาย').trim();
-                                fullName = (cols[1] || '').trim();
-                                position = (cols[2] || 'ครูผู้สอน').trim();
+                            // Handle 5-column format if present (คำนำหน้า, ชื่อ-นามสกุล, ตำแหน่ง, ห้องเรียน, เบอร์โทร)
+                            if (cols.length >= 5 && (['นาย','นาง','นางสาว','ดร.'].includes(cols[0].trim()) || (cols[1] || '').trim().length > 0)) {
+                                const title = (cols[0] || '').trim();
+                                const name = (cols[1] || '').trim();
+                                fullName = title && !name.startsWith(title) ? `${title}${name}` : name;
+                                position = (cols[2] || 'ครู').trim();
                                 responsibleRoom = (cols[3] || '').trim();
                                 phone = (cols[4] || '').trim();
                             }
 
-                            parsedTeachers.push({
-                                prefix: prefix,
-                                fullName: fullName,
-                                position: position,
-                                responsibleRoom: responsibleRoom,
-                                phone: phone,
-                                createdAt: new Date().toISOString()
-                            });
+                            if (fullName) {
+                                parsedTeachers.push({
+                                    id: 'TCH_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 4),
+                                    fullName: fullName,
+                                    position: position || 'ครู',
+                                    responsibleRoom: responsibleRoom,
+                                    phone: phone,
+                                    createdAt: new Date().toISOString()
+                                });
+                            }
                         }
                     }
                     resolve(parsedTeachers);
