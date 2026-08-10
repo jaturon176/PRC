@@ -67,6 +67,7 @@ class Application {
 
         // 6. Realtime Listeners for Data Updates
         window.addEventListener('studentsUpdated', () => {
+            if (this._skipStudentListRefresh) return; // skip if CSV import is in progress
             this.renderDashboard();
             this.renderStudentList();
             this.updateStudentDropdowns();
@@ -408,30 +409,36 @@ class Application {
                     return;
                 }
 
-                // Debug: log parsed rooms
                 const rooms = [...new Set(parsed.map(s => `${s.grade}/${s.room}`))];
                 console.log(`[App] CSV parsed ${parsed.length} students, rooms: ${rooms.join(', ')}`);
+
+                // Block event listener from overriding filter during our controlled import
+                this._skipStudentListRefresh = true;
 
                 const merged = await firebaseService.saveStudentsBatch(parsed);
                 console.log(`[App] Total students after merge: ${merged.length}`);
 
                 this.closeModal('modal-csv-import');
 
-                // Reset room filter so new rooms are visible after import
+                // Reset room filter so ALL rooms appear after import
                 const roomFilter = document.getElementById('student-room-filter');
                 if (roomFilter) roomFilter.value = '';
                 const gradeFilter = document.getElementById('student-grade-filter');
                 if (gradeFilter && parsed[0]) gradeFilter.value = parsed[0].grade || '';
 
+                // Now render with correct filters
+                this._skipStudentListRefresh = false;
                 this.renderStudentList();
                 this.renderDashboard();
                 this.updateStudentDropdowns();
+
                 await this.alertDialog({
                     title: 'นำเข้าข้อมูลนักเรียนสำเร็จ',
                     message: `นำเข้าข้อมูลนักเรียนสำเร็จจำนวน ${parsed.length} คน จากห้อง ${rooms.join(', ')} (รวมทั้งหมด ${merged.length} คนในระบบ)`,
                     type: 'success'
                 });
             } catch (err) {
+                this._skipStudentListRefresh = false;
                 console.error('[App] CSV import error:', err);
                 await this.alertDialog({ title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการอ่านไฟล์ CSV: ' + err.message, type: 'danger' });
             }
