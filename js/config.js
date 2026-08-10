@@ -4,6 +4,8 @@
  */
 
 const CONFIG = {
+    SYSTEM_VERSION: "1.0",
+
     // 1. Firebase Realtime Database Configuration
     FIREBASE: {
         DATABASE_URL: "https://prcare-2f41d-default-rtdb.asia-southeast1.firebasedatabase.app/",
