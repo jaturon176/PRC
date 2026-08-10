@@ -922,8 +922,18 @@ class Application {
     normalizeRoom(r) {
         if (!r) return '';
         const str = String(r).trim().replace(/["']/g, '');
-        const digits = str.replace(/\D/g, '');
-        return digits || str;
+        const nums = str.match(/\d+/g) || [];
+        if (nums.length >= 2) {
+            return nums[nums.length - 1];
+        }
+        if (nums.length === 1) {
+            const num = parseInt(nums[0], 10);
+            if (num >= 101 && num <= 699) {
+                return String(num % 100);
+            }
+            return nums[0];
+        }
+        return str;
     }
 
     updateRoomFilterDropdown() {

@@ -33,22 +33,29 @@ class CSVImporter {
     parseGradeAndRoom(str) {
         if (!str) return { grade: 'ม.1', room: '1' };
         const clean = String(str).trim().replace(/^\uFEFF/, '');
-        const parts = clean.split(/[\/\s-]+/).filter(Boolean);
+        const nums = clean.match(/\d+/g) || [];
         let grade = 'ม.1';
         let room = '1';
 
-        if (parts.length >= 2) {
-            let gPart = parts[0].trim();
-            let rPart = parts[1].trim();
-            if (/^\d+$/.test(gPart)) {
-                gPart = `ม.${gPart}`;
+        if (nums.length >= 2) {
+            grade = `ม.${nums[0]}`;
+            room = nums[1];
+        } else if (nums.length === 1) {
+            const num = parseInt(nums[0], 10);
+            if (num >= 101 && num <= 699) {
+                const g = Math.floor(num / 100);
+                const r = num % 100;
+                grade = `ม.${g}`;
+                room = String(r);
+            } else {
+                grade = `ม.${nums[0]}`;
+                room = '1';
             }
-            grade = gPart;
-            room = rPart.replace(/\D/g, '') || rPart;
-        } else if (parts.length === 1) {
-            grade = parts[0].trim();
-            room = clean.replace(/\D/g, '') || '1';
+        } else {
+            grade = clean || 'ม.1';
+            room = '1';
         }
+
         return { grade, room };
     }
 
