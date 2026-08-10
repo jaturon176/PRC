@@ -168,25 +168,36 @@ class FirebaseService {
                 const localData = this.getCache(item.key) || [];
                 const map = new Map();
 
+                // 1. Put all local items into map FIRST
                 localData.forEach(it => {
-                    const k = it.studentId || it.id || (item.idKey && it[item.idKey]);
+                    const k = it.id || it.studentId || (item.idKey && it[item.idKey]);
                     if (k) map.set(k, it);
                 });
 
+                // 2. Merge cloud items without dropping any local items
                 itemsList.forEach(it => {
-                    const k = it.studentId || it.id || (item.idKey && it[item.idKey]);
+                    const k = it.id || it.studentId || (item.idKey && it[item.idKey]);
                     if (k) {
                         const localItem = map.get(k);
                         if (!localItem) {
                             map.set(k, it);
-                        } else if (new Date(it.updatedAt || 0) > new Date(localItem.updatedAt || 0)) {
-                            map.set(k, { ...localItem, ...it });
+                        } else {
+                            // Preserve local data priority over older cloud snapshot
+                            map.set(k, { ...it, ...localItem });
                         }
                     }
                 });
 
                 const merged = Array.from(map.values());
                 this.setCache(item.key, merged);
+
+                // If local machine had more data than cloud, push merged full list back to cloud
+                if (localData.length > itemsList.length && this.isOnline) {
+                    const cloudObject = {};
+                    merged.forEach(s => { cloudObject[s.id || s.studentId] = s; });
+                    this.cloudPut(item.endpoint, cloudObject);
+                }
+
                 window.dispatchEvent(new CustomEvent(item.event, { detail: merged }));
             }
         }
