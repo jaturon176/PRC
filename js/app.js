@@ -397,6 +397,9 @@ class Application {
                 const parsed = await csvImporter.parseCSV(fileInput.files[0], teachers);
                 await firebaseService.saveStudentsBatch(parsed);
                 this.closeModal('modal-csv-import');
+                this.renderStudentList();
+                this.renderDashboard();
+                this.updateStudentDropdowns();
                 await this.alertDialog({
                     title: 'นำเข้าข้อมูลนักเรียนสำเร็จ',
                     message: `นำเข้าข้อมูลนักเรียนสำเร็จจำนวน ${parsed.length} คน (แมตช์ครูที่ปรึกษาจากระบบให้อัตโนมัติ)`,

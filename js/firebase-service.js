@@ -198,12 +198,16 @@ class FirebaseService {
     async saveStudentsBatch(newStudentsList) {
         const students = this.getStudents();
         const map = new Map();
-        students.forEach(s => map.set(s.studentId, s));
+        students.forEach(s => {
+            const key = s.id || s.studentId;
+            if (key) map.set(key, s);
+        });
 
-        newStudentsList.forEach(s => {
-            if (!s.id) s.id = 'STD_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        newStudentsList.forEach((s, idx) => {
+            if (!s.id) s.id = 'STD_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4);
             s.updatedAt = new Date().toISOString();
-            map.set(s.studentId, s);
+            const key = s.id || s.studentId;
+            map.set(key, s);
         });
 
         const merged = Array.from(map.values());
@@ -211,7 +215,6 @@ class FirebaseService {
         window.dispatchEvent(new CustomEvent('studentsUpdated', { detail: merged }));
 
         if (this.isOnline) {
-            // Push full object map to Firebase
             const cloudObject = {};
             merged.forEach(s => { cloudObject[s.id] = s; });
             await this.cloudPut(CONFIG.FIREBASE.ENDPOINTS.STUDENTS, cloudObject);
