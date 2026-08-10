@@ -883,17 +883,36 @@ class Application {
 
     // --- Render Data Views ---
 
+    normalizeGrade(g) {
+        if (!g) return '';
+        const str = String(g).trim().replace(/["']/g, '');
+        if (str.includes('ม.1') || str.includes('มัธยมศึกษาปีที่ 1')) return 'ม.1';
+        if (str.includes('ม.2') || str.includes('มัธยมศึกษาปีที่ 2')) return 'ม.2';
+        if (str.includes('ม.3') || str.includes('มัธยมศึกษาปีที่ 3')) return 'ม.3';
+        if (str.includes('ม.4') || str.includes('มัธยมศึกษาปีที่ 4')) return 'ม.4';
+        if (str.includes('ม.5') || str.includes('มัธยมศึกษาปีที่ 5')) return 'ม.5';
+        if (str.includes('ม.6') || str.includes('มัธยมศึกษาปีที่ 6')) return 'ม.6';
+        if (str.includes('ปวช.1')) return 'ปวช.1';
+        if (str.includes('ปวช.2')) return 'ปวช.2';
+        if (str.includes('ปวช.3')) return 'ปวช.3';
+        return str;
+    }
+
     updateRoomFilterDropdown() {
         const roomSelect = document.getElementById('student-room-filter');
         if (!roomSelect) return;
 
-        const selectedGrade = document.getElementById('student-grade-filter')?.value || '';
+        const selectedGradeRaw = document.getElementById('student-grade-filter')?.value || '';
+        const selectedGrade = this.normalizeGrade(selectedGradeRaw);
         const currentSelectedRoom = roomSelect.value;
         const students = firebaseService.getStudents() || [];
 
         let filteredStudents = students;
         if (selectedGrade) {
-            filteredStudents = students.filter(s => s.grade === selectedGrade || `${s.grade}/${s.room}` === selectedGrade);
+            filteredStudents = students.filter(s => {
+                const sGradeNorm = this.normalizeGrade(s.grade);
+                return sGradeNorm === selectedGrade || `${sGradeNorm}/${s.room}` === selectedGrade;
+            });
         }
 
         const roomsSet = new Set();
@@ -940,7 +959,11 @@ class Application {
             );
         }
         if (gradeFilter) {
-            students = students.filter(s => s.grade === gradeFilter || `${s.grade}/${s.room}` === gradeFilter);
+            const normGrade = this.normalizeGrade(gradeFilter);
+            students = students.filter(s => {
+                const sGradeNorm = this.normalizeGrade(s.grade);
+                return sGradeNorm === normGrade || `${sGradeNorm}/${s.room}` === normGrade;
+            });
         }
         if (roomFilter) {
             students = students.filter(s => String(s.room).trim() === String(roomFilter).trim());
