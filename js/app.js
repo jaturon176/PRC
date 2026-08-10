@@ -16,6 +16,15 @@ class Application {
     async init() {
         console.log('[App] Initializing Student Care & Assistance System...');
 
+        // Auto Cache Bust on Version Bump
+        const currentVersion = CONFIG.SYSTEM_VERSION || '1.2';
+        const savedVersion = localStorage.getItem('prcare_app_ver');
+        if (savedVersion !== currentVersion) {
+            console.log(`[App] Version bump detected (${savedVersion} -> ${currentVersion}). Refreshing cache...`);
+            localStorage.setItem('prcare_app_ver', currentVersion);
+            localStorage.removeItem(CONFIG.STORAGE_KEYS.TEACHERS);
+        }
+
         // 1. Load Seed Data if database empty
         this.checkAndLoadSeedData();
         this.checkAndLoadTeacherSeedData();
@@ -982,25 +991,35 @@ class Application {
 
         const parseGradeRoomSortKey = (roomStr) => {
             if (!roomStr) return { levelOrder: 999, roomNum: 999 };
-            const str = String(roomStr).trim();
-            const levelMap = {
-                'ม.1': 1, 'ม.2': 2, 'ม.3': 3, 'ม.4': 4, 'ม.5': 5, 'ม.6': 6,
-                'ปวช.1': 7, 'ปวช.2': 8, 'ปวช.3': 9
-            };
+            const cleanStr = String(roomStr).trim();
+            const levelMap = [
+                { key: 'ม.1', order: 1 },
+                { key: 'ม.2', order: 2 },
+                { key: 'ม.3', order: 3 },
+                { key: 'ม.4', order: 4 },
+                { key: 'ม.5', order: 5 },
+                { key: 'ม.6', order: 6 },
+                { key: 'ปวช.1', order: 7 },
+                { key: 'ปวช.2', order: 8 },
+                { key: 'ปวช.3', order: 9 }
+            ];
+
             let levelOrder = 99;
             let roomNum = 99;
 
-            for (const [level, order] of Object.entries(levelMap)) {
-                if (str.startsWith(level)) {
-                    levelOrder = order;
-                    const parts = str.split('/');
-                    if (parts.length > 1) {
-                        const parsed = parseInt(parts[1], 10);
-                        if (!isNaN(parsed)) roomNum = parsed;
-                    }
+            for (const item of levelMap) {
+                if (cleanStr.includes(item.key)) {
+                    levelOrder = item.order;
                     break;
                 }
             }
+
+            const parts = cleanStr.split('/');
+            if (parts.length > 1) {
+                const num = parseInt(parts[1].replace(/\D/g, ''), 10);
+                if (!isNaN(num)) roomNum = num;
+            }
+
             return { levelOrder, roomNum };
         };
 
