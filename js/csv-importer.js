@@ -87,24 +87,17 @@ class CSVImporter {
                             let room = '1';
                             let advisors = '';
 
-                            // Format 5+ cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3), ครูที่ปรึกษา(4)
-                            if (cols.length >= 5) {
+                            // Format 4+ cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3), ครูที่ปรึกษา(4+)
+                            if (cols.length >= 4) {
                                 number = cols[0].trim();
                                 studentId = cols[1].trim();
                                 fullName = cols[2].trim();
                                 const parsedGR = this.parseGradeAndRoom(cols[3]);
                                 grade = parsedGR.grade;
                                 room = parsedGR.room;
-                                advisors = cols[4].trim();
-                            }
-                            // Format 4 cols: เลขที่(0), รหัสประจำตัว(1), ชื่อ-สกุล(2), ระดับชั้น/ห้อง(3)
-                            else if (cols.length === 4) {
-                                number = cols[0].trim();
-                                studentId = cols[1].trim();
-                                fullName = cols[2].trim();
-                                const parsedGR = this.parseGradeAndRoom(cols[3]);
-                                grade = parsedGR.grade;
-                                room = parsedGR.room;
+                                if (cols.length >= 5) {
+                                    advisors = cols.slice(4).map(c => c.trim()).filter(Boolean).join(', ');
+                                }
                             } 
                             // Format 3 cols: รหัสประจำตัว(0), ชื่อ-สกุล(1), ระดับชั้น/ห้อง(2)
                             else if (cols.length === 3) {
