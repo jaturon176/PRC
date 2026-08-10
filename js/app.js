@@ -148,11 +148,16 @@ class Application {
         if (!teachers || teachers.length === 0) {
             console.log('[App] Loading default sample Teacher data...');
             const sampleTeachers = [
-                { fullName: 'นายสมศักดิ์ รักเรียน', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/1', phone: '081-222-3333' },
-                { fullName: 'นางสมศรี ใจดี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/1', phone: '082-333-4444' },
-                { fullName: 'นายวิเชียร ดีเลิศ', position: 'ครู', responsibleRoom: 'ม.2/1', phone: '083-444-5555' },
-                { fullName: 'นายอนันต์ ชัยชนะ', position: 'รองผู้อำนวยการ', responsibleRoom: 'ม.3/1', phone: '084-555-6666' },
-                { fullName: 'นางสาวพิมพ์มาดา รักดี', position: 'ผู้อำนวยการ', responsibleRoom: 'ม.4/1', phone: '085-666-7777' }
+                { fullName: 'นายมนัส เทศทอง', position: 'ผู้อำนวยการ', responsibleRoom: '-', phone: '0617147864' },
+                { fullName: 'นายอนันต์ ชัยชนะ', position: 'รองผู้อำนวยการ', responsibleRoom: '-', phone: '0845556666' },
+                { fullName: 'นางสมศรี ใจดี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/1', phone: '0823334444' },
+                { fullName: 'นางสาวพะลินี ลาภไธสง', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/3', phone: '0910204240' },
+                { fullName: 'นายธนบดี สอนตระกูล', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/6', phone: '0925871006' },
+                { fullName: 'นางสาวกนกพร สุขินดี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.1/7', phone: '0823716171' },
+                { fullName: 'นายยศศวรรษ พิมพ์เก่า', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.2/5', phone: '0996353416' },
+                { fullName: 'นายรัชชวิจินันท์ ไทรคีพะเนาว์', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.3/2', phone: '0986141148' },
+                { fullName: 'นายธนบิต ดวงจาซี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ม.3/6', phone: '0916734226' },
+                { fullName: 'นายชัชวาล สุขดี', position: 'ครูที่ปรึกษา', responsibleRoom: 'ปวช.2/1', phone: '0910713002' }
             ];
             firebaseService.saveTeachersBatch(sampleTeachers);
         }
@@ -963,6 +968,59 @@ class Application {
         if (positionFilter) {
             teachers = teachers.filter(t => t.position === positionFilter);
         }
+
+        // Sort Teachers: Position Priority (ผอ. -> รอง ผอ. -> ครูที่ปรึกษา -> ครู) & Grade/Room (ม.1/1, ม.1/2, ...)
+        const getPositionRank = (pos) => {
+            if (!pos) return 99;
+            const p = String(pos).trim();
+            if (p.includes('ผู้อำนวยการ') && !p.includes('รอง')) return 1;
+            if (p.includes('รองผู้อำนวยการ')) return 2;
+            if (p.includes('ครูที่ปรึกษา') || p.includes('ครูประจำชั้น')) return 3;
+            if (p.includes('ครู')) return 4;
+            return 5;
+        };
+
+        const parseGradeRoomSortKey = (roomStr) => {
+            if (!roomStr) return { levelOrder: 999, roomNum: 999 };
+            const str = String(roomStr).trim();
+            const levelMap = {
+                'ม.1': 1, 'ม.2': 2, 'ม.3': 3, 'ม.4': 4, 'ม.5': 5, 'ม.6': 6,
+                'ปวช.1': 7, 'ปวช.2': 8, 'ปวช.3': 9
+            };
+            let levelOrder = 99;
+            let roomNum = 99;
+
+            for (const [level, order] of Object.entries(levelMap)) {
+                if (str.startsWith(level)) {
+                    levelOrder = order;
+                    const parts = str.split('/');
+                    if (parts.length > 1) {
+                        const parsed = parseInt(parts[1], 10);
+                        if (!isNaN(parsed)) roomNum = parsed;
+                    }
+                    break;
+                }
+            }
+            return { levelOrder, roomNum };
+        };
+
+        teachers.sort((a, b) => {
+            const rankA = getPositionRank(a.position);
+            const rankB = getPositionRank(b.position);
+            if (rankA !== rankB) return rankA - rankB;
+
+            const roomA = parseGradeRoomSortKey(a.responsibleRoom || a.responsibleGrade);
+            const roomB = parseGradeRoomSortKey(b.responsibleRoom || b.responsibleGrade);
+
+            if (roomA.levelOrder !== roomB.levelOrder) {
+                return roomA.levelOrder - roomB.levelOrder;
+            }
+            if (roomA.roomNum !== roomB.roomNum) {
+                return roomA.roomNum - roomB.roomNum;
+            }
+
+            return (a.fullName || '').localeCompare(b.fullName || '', 'th');
+        });
 
         tbody.innerHTML = '';
         if (teachers.length === 0) {
