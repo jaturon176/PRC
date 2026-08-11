@@ -82,62 +82,42 @@ class CSVImporter {
     }
 
     parseStudentRow(cols, lineIdx) {
-        let number = '';
-        let studentId = '';
-        let fullName = '';
+        const cleaned = cols.map(c => (c || '').trim().replace(/^"|"$/g, ''));
+        
+        let number = cleaned[0] || '';
+        let studentId = cleaned[1] || '';
+        let fullName = cleaned[2] || '';
         let grade = 'ม.1';
         let room = '1';
         let advisors = '';
 
-        const cleanedCols = cols.map(c => (c || '').trim().replace(/^"|"$/g, ''));
+        // Extract non-empty values starting from index 3 (after fullName)
+        const trailingValues = cleaned.slice(3).filter(v => v !== '');
 
-        if (cleanedCols.length >= 6) {
-            number = cleanedCols[0];
-            studentId = cleanedCols[1];
-            fullName = cleanedCols[2];
-            grade = this.normalizeGrade(cleanedCols[3]);
-            room = this.normalizeRoomNumber(cleanedCols[4]);
-            advisors = cleanedCols[5];
-        } else if (cleanedCols.length === 5) {
-            number = cleanedCols[0];
-            studentId = cleanedCols[1];
-            fullName = cleanedCols[2];
-            const col3 = cleanedCols[3];
-            const col4 = cleanedCols[4];
+        if (trailingValues.length >= 3) {
+            grade = this.normalizeGrade(trailingValues[0]);
+            room = this.normalizeRoomNumber(trailingValues[1]);
+            advisors = trailingValues[2];
+        } else if (trailingValues.length === 2) {
+            const v0 = trailingValues[0];
+            const v1 = trailingValues[1];
 
-            const isCol4Teacher = /[ก-ฮa-zA-Z]/.test(col4) && !/^\d+$/.test(col4);
+            const isV1Teacher = /[ก-ฮa-zA-Z]/.test(v1) && !/^\d+$/.test(v1);
 
-            if (col3.includes('/') || col3.includes('ห้อง') || isCol4Teacher) {
-                const parsedGR = this.parseGradeAndRoom(col3);
+            if (v0.includes('/') || v0.includes('ห้อง') || isV1Teacher) {
+                const parsedGR = this.parseGradeAndRoom(v0);
                 grade = parsedGR.grade;
                 room = parsedGR.room;
-                advisors = col4;
+                advisors = v1;
             } else {
-                grade = this.normalizeGrade(col3);
-                room = this.normalizeRoomNumber(col4);
+                grade = this.normalizeGrade(v0);
+                room = this.normalizeRoomNumber(v1);
                 advisors = '';
             }
-        } else if (cleanedCols.length === 4) {
-            number = cleanedCols[0];
-            studentId = cleanedCols[1];
-            fullName = cleanedCols[2];
-            const parsedGR = this.parseGradeAndRoom(cleanedCols[3]);
+        } else if (trailingValues.length === 1) {
+            const parsedGR = this.parseGradeAndRoom(trailingValues[0]);
             grade = parsedGR.grade;
             room = parsedGR.room;
-        } else if (cleanedCols.length === 3) {
-            studentId = cleanedCols[0];
-            fullName = cleanedCols[1];
-            const parsedGR = this.parseGradeAndRoom(cleanedCols[2]);
-            grade = parsedGR.grade;
-            room = parsedGR.room;
-            number = lineIdx.toString();
-        } else if (cleanedCols.length === 2) {
-            fullName = cleanedCols[0];
-            const parsedGR = this.parseGradeAndRoom(cleanedCols[1]);
-            grade = parsedGR.grade;
-            room = parsedGR.room;
-            number = lineIdx.toString();
-            studentId = `STD_${Date.now()}_${lineIdx}`;
         }
 
         if (!room || room.trim() === '') room = '1';

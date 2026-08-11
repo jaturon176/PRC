@@ -189,16 +189,23 @@ class FirebaseService {
                 });
 
                 const merged = Array.from(map.values());
-                this.setCache(item.key, merged);
 
-                // If local machine had more data than cloud, push merged full list back to cloud
-                if (localData.length > itemsList.length && this.isOnline) {
-                    const cloudObject = {};
-                    merged.forEach(s => { cloudObject[s.id || s.studentId] = s; });
-                    this.cloudPut(item.endpoint, cloudObject);
+                // Guard: Only update cache if merged dataset has items or if local was empty
+                if (merged.length > 0 || localData.length === 0) {
+                    this.setCache(item.key, merged);
+
+                    // If local machine had more data than cloud, push merged full list back to cloud
+                    if (localData.length > itemsList.length && this.isOnline) {
+                        const cloudObject = {};
+                        merged.forEach(s => { 
+                            const safeKey = String(s.id || s.studentId).replace(/[\.#\$\[\]\/]/g, '_');
+                            cloudObject[safeKey] = s; 
+                        });
+                        this.cloudPut(item.endpoint, cloudObject);
+                    }
+
+                    window.dispatchEvent(new CustomEvent(item.event, { detail: merged }));
                 }
-
-                window.dispatchEvent(new CustomEvent(item.event, { detail: merged }));
             }
         }
     }
