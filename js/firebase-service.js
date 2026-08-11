@@ -262,7 +262,10 @@ class FirebaseService {
 
         if (this.isOnline) {
             const cloudObject = {};
-            students.forEach(s => { cloudObject[s.id] = s; });
+            students.forEach(s => { 
+                const safeKey = String(s.id || s.studentId).replace(/[\.#\$\[\]\/]/g, '_');
+                cloudObject[safeKey] = s; 
+            });
             await this.cloudPut(CONFIG.FIREBASE.ENDPOINTS.STUDENTS, cloudObject);
             console.log(`[FirebaseService] Synced ${students.length} students to cloud.`);
         }
