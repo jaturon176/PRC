@@ -34,7 +34,6 @@ class CSVImporter {
         if (str.includes('ปวช.1') || str.includes('ปวช1')) return 'ปวช.1';
         if (str.includes('ปวช.2') || str.includes('ปวช2')) return 'ปวช.2';
         if (str.includes('ปวช.3') || str.includes('ปวช3')) return 'ปวช.3';
-        if (/^[1-6]$/.test(str)) return `ม.${str}`;
         if (str.startsWith('ม.')) return str;
         return null;
     }
@@ -68,7 +67,6 @@ class CSVImporter {
             if (num >= 101 && num <= 699) {
                 return { grade: `ม.${Math.floor(num / 100)}`, room: String(num % 100) };
             }
-            return { grade: `ม.${nums[0]}`, room: null };
         }
         return { grade: clean.startsWith('ม.') ? clean : null, room: null };
     }
@@ -114,34 +112,62 @@ class CSVImporter {
         let roomRaw   = headerMap.room      >= 0 ? get(headerMap.room)      : '';
         let advisors  = headerMap.advisors  >= 0 ? get(headerMap.advisors)  : '';
 
-        // Fallback: if no header detected, use positional
-        if (headerMap.studentId < 0 && headerMap.fullName < 0) {
-            // Positional fallback
+        // If header map didn't detect both grade and room, smart positional detection
+        if (headerMap.grade < 0 || headerMap.room < 0) {
             const cleaned = cols.map(c => (c || '').trim().replace(/^"|"$/g, ''));
-            number    = cleaned[0] || '';
-            studentId = cleaned[1] || '';
-            fullName  = cleaned[2] || '';
 
-            const trailing = cleaned.slice(3).filter(v => v !== '');
+            // Fallback for number/studentId/fullName if not mapped
+            if (headerMap.studentId < 0 && headerMap.fullName < 0) {
+                number    = cleaned[0] || '';
+                studentId = cleaned[1] || '';
+                fullName  = cleaned[2] || '';
+            }
+
+            // Inspect trailing columns after fullName (index 3 onwards)
+            const nameIdx = headerMap.fullName >= 0 ? headerMap.fullName : 2;
+            const trailing = cleaned.slice(nameIdx + 1).filter(v => v !== '');
+
             if (trailing.length >= 3) {
-                gradeRaw  = trailing[0];
-                roomRaw   = trailing[1];
-                advisors  = trailing[2];
-            } else if (trailing.length === 2) {
-                const isV1Teacher = /[ก-ฮa-zA-Z]/.test(trailing[1]) && !/^\d+$/.test(trailing[1]);
-                if (trailing[0].includes('/') || trailing[0].includes('ห้อง') || isV1Teacher) {
-                    const parsed = this.parseGradeAndRoom(trailing[0]);
-                    gradeRaw = parsed.grade || '';
-                    roomRaw  = parsed.room  || '';
-                    advisors = trailing[1];
-                } else {
+                const gNorm = this.normalizeGrade(trailing[0]);
+                if (gNorm) {
                     gradeRaw = trailing[0];
-                    roomRaw  = trailing[1];
+                    roomRaw = trailing[1];
+                    advisors = trailing[2];
+                } else {
+                    roomRaw = trailing[0];
+                    advisors = trailing[1];
+                }
+            } else if (trailing.length === 2) {
+                const v0 = trailing[0];
+                const v1 = trailing[1];
+                const gNorm = this.normalizeGrade(v0);
+
+                if (gNorm) {
+                    gradeRaw = v0;
+                    roomRaw = v1;
+                } else if (v0.includes('/') || v0.includes('ห้อง')) {
+                    const parsed = this.parseGradeAndRoom(v0);
+                    gradeRaw = parsed.grade || '';
+                    roomRaw = parsed.room || '';
+                    advisors = v1;
+                } else {
+                    // Col 4 is room (e.g., '1', '2'), Col 5 is teacher/advisor
+                    roomRaw = v0;
+                    advisors = v1;
                 }
             } else if (trailing.length === 1) {
-                const parsed = this.parseGradeAndRoom(trailing[0]);
-                gradeRaw = parsed.grade || '';
-                roomRaw  = parsed.room  || '';
+                const v0 = trailing[0];
+                const gNorm = this.normalizeGrade(v0);
+                if (gNorm) {
+                    gradeRaw = v0;
+                } else {
+                    const parsed = this.parseGradeAndRoom(v0);
+                    if (parsed.grade) gradeRaw = parsed.grade;
+                    if (parsed.room) roomRaw = parsed.room;
+                    if (!parsed.grade && !parsed.room && /^\d+$/.test(v0)) {
+                        roomRaw = v0;
+                    }
+                }
             }
         }
 

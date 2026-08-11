@@ -1037,15 +1037,27 @@ class Application {
 
             this.closeModal('modal-csv-import');
 
-            // Reset grade/room filter to show all imported data
+            // Set grade filter to imported grade (e.g., ม.1) and reset room filter to show all rooms
+            const targetGrade = readyStudents[0]?.grade || '';
             const gradeSelect = document.getElementById('student-grade-filter');
-            if (gradeSelect) gradeSelect.value = '';
-
-            this.updateRoomFilterDropdown();
+            if (gradeSelect && targetGrade) {
+                let matched = false;
+                for (let opt of gradeSelect.options) {
+                    if (this.normalizeGrade(opt.value) === this.normalizeGrade(targetGrade)) {
+                        gradeSelect.value = opt.value;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) gradeSelect.value = '';
+            } else if (gradeSelect) {
+                gradeSelect.value = '';
+            }
 
             const roomSelect = document.getElementById('student-room-filter');
             if (roomSelect) roomSelect.value = '';
 
+            this.updateRoomFilterDropdown();
             this.renderStudentList();
             this.renderDashboard();
             this.updateStudentDropdowns();
@@ -1055,6 +1067,10 @@ class Application {
                 message: `นำเข้านักเรียน ${parsed.length} คน จากห้อง ${roomList} เรียบร้อยแล้ว (รวมทั้งระบบ ${merged.length} คน)`,
                 type: 'success'
             });
+
+            // Re-render after modal dialog closes to ensure UI is fresh
+            this.updateRoomFilterDropdown();
+            this.renderStudentList();
 
         } catch (err) {
             this._skipStudentListRefresh = false;
