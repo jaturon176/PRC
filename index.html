@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#881337">
 
     <!-- Preload Critical CSS -->
-    <link rel="preload" href="css/style.css?v=4.1" as="style">
+    <link rel="preload" href="css/style.css?v=5.0" as="style">
 
     <!-- Remix Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
@@ -20,8 +20,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- Custom Style (v4.1 - Modern Light Theme) -->
-    <link rel="stylesheet" href="css/style.css?v=4.1">
+    <!-- Custom Style (v5.0 - Modern Light Theme) -->
+    <link rel="stylesheet" href="css/style.css?v=5.0">
 </head>
 <body>
     <!-- DEDICATED FULLSCREEN LOGIN PAGE (Matching User Reference Image Design) -->
@@ -127,7 +127,7 @@
             </ul>
 
             <div style="padding: 18px 14px; font-size: 1rem; color: #ffffff; font-weight: 600; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.2); letter-spacing: 0.3px; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
-                &copy; 2026 PR-Care+ Developed by Krunoii v4.1
+                &copy; 2026 PR-Care+ Developed by Krunoii v5.0
             </div>
         </aside>
 
@@ -142,7 +142,7 @@
                         <span class="status-text">Online (Firebase Sync)</span>
                     </div>
                     <div style="padding: 4px 10px; border-radius: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #fde68a; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 4px;" title="เวอร์ชันปัจจุบันของระบบ">
-                        <i class="ri-git-commit-line"></i> v4.1
+                        <i class="ri-git-commit-line"></i> v5.0
                     </div>
                 </div>
 
@@ -773,26 +773,49 @@
         </div>
     </div>
 
-    <!-- Modal 3: CSV Import -->
+    <!-- Modal 3: CSV Import & Live Preview -->
     <div class="modal-overlay" id="modal-csv-import">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 750px;">
             <div class="modal-header">
-                <h3><i class="ri-upload-cloud-line"></i> นำเข้าข้อมูลนักเรียนด้วยไฟล์ CSV</h3>
+                <h3><i class="ri-upload-cloud-line"></i> นำเข้าข้อมูลนักเรียนด้วยไฟล์ CSV (ระบบตรวจจับคอลัมน์ให้อัตโนมัติ)</h3>
                 <button class="btn-close" onclick="app.closeModal('modal-csv-import')">&times;</button>
             </div>
             <form id="form-csv-import">
                 <div class="modal-body">
                     <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">
-                        อัปโหลดไฟล์ .CSV ที่มีข้อมูลนักเรียนระดับชั้น ม.1-ม.6 และ ปวช.1-ปวช.3
+                        รองรับไฟล์ CSV จาก Excel ทั้งแบบ 6 คอลัมน์มาตรฐาน และ 5 คอลัมน์ (ชั้น, ห้อง, ครูที่ปรึกษา)
                     </p>
                     <div class="form-group">
-                        <label class="form-label">เลือกไฟล์ CSV</label>
+                        <label class="form-label">เลือกไฟล์ CSV นักเรียน</label>
                         <input type="file" class="form-control" id="csv-file-input" accept=".csv" required>
+                    </div>
+
+                    <!-- Live CSV Preview Container -->
+                    <div id="csv-preview-container" style="display: none; margin-top: 20px; border-top: 1px dashed #cbd5e1; padding-top: 15px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h5 style="margin: 0; color: var(--primary-red);"><i class="ri-eye-line"></i> ตารางตัวอย่างข้อมูลที่จะถูกนำเข้า</h5>
+                            <span id="csv-summary-badge" class="badge badge-success" style="font-size: 0.85rem;"></span>
+                        </div>
+                        <div style="max-height: 220px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                            <table class="data-table" style="font-size: 0.85rem; width: 100%;">
+                                <thead>
+                                    <tr style="background: #f8fafc;">
+                                        <th>เลขที่</th>
+                                        <th>รหัสประจำตัว</th>
+                                        <th>ชื่อ - นามสกุล</th>
+                                        <th>ระดับชั้น/ห้อง</th>
+                                        <th>ครูที่ปรึกษา</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="csv-preview-tbody">
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="app.closeModal('modal-csv-import')">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary">เริ่มการนำเข้าข้อมูล</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-csv-import" disabled><i class="ri-check-line"></i> ยืนยันการนำเข้าข้อมูล</button>
                 </div>
             </form>
         </div>
@@ -1011,6 +1034,15 @@
         </div>
     </div>
 
+    <!-- Load Application Scripts (v5.0) -->
+    <script src="js/config.js?v=5.0"></script>
+    <script src="js/firebase-service.js?v=5.0"></script>
+    <script src="js/cloudinary-service.js?v=5.0"></script>
+    <script src="js/pdf-generator.js?v=5.0"></script>
+    <script src="js/csv-importer.js?v=5.0"></script>
+    <script src="js/auth.js?v=5.0"></script>
+    <script src="js/app.js?v=5.0"></script>
+
     <!-- Modal: Add/Edit Teacher -->
     <div class="modal-overlay" id="modal-teacher">
         <div class="modal-content">
@@ -1214,14 +1246,5 @@
             </div>
         </div>
     </div>
-
-    <!-- Load Application Scripts (v3.0) -->
-    <script src="js/config.js?v=3.0"></script>
-    <script src="js/firebase-service.js?v=3.0"></script>
-    <script src="js/cloudinary-service.js?v=3.0"></script>
-    <script src="js/pdf-generator.js?v=3.0"></script>
-    <script src="js/csv-importer.js?v=3.0"></script>
-    <script src="js/auth.js?v=3.0"></script>
-    <script src="js/app.js?v=3.0"></script>
 </body>
 </html>

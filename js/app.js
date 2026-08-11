@@ -393,25 +393,74 @@ class Application {
             csvImporter.exportStudentsToCSV(students);
         });
 
+        // CSV File Select - Live Preview Handler
+        document.getElementById('csv-file-input')?.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            const previewContainer = document.getElementById('csv-preview-container');
+            const previewTbody = document.getElementById('csv-preview-tbody');
+            const summaryBadge = document.getElementById('csv-summary-badge');
+            const btnSubmit = document.getElementById('btn-submit-csv-import');
+
+            if (!file) {
+                if (previewContainer) previewContainer.style.display = 'none';
+                if (btnSubmit) btnSubmit.disabled = true;
+                return;
+            }
+
+            try {
+                this._stagedCSVStudents = await csvImporter.parseCSV(file);
+                if (!this._stagedCSVStudents || this._stagedCSVStudents.length === 0) {
+                    await this.alertDialog({ title: 'ไม่พบข้อมูล', message: 'ไม่พบข้อมูลนักเรียนในไฟล์ CSV กรุณาตรวจสอบไฟล์', type: 'warning' });
+                    if (previewContainer) previewContainer.style.display = 'none';
+                    if (btnSubmit) btnSubmit.disabled = true;
+                    return;
+                }
+
+                // Render Preview Table (First 5 rows)
+                if (previewTbody) {
+                    previewTbody.innerHTML = this._stagedCSVStudents.slice(0, 5).map(s => `
+                        <tr>
+                            <td>${s.number || '-'}</td>
+                            <td><strong>${s.studentId || '-'}</strong></td>
+                            <td>${s.fullName || '-'}</td>
+                            <td><span class="badge badge-info">${s.grade}/${s.room}</span></td>
+                            <td>${s.advisors || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Summary Badge
+                const roomCounts = {};
+                this._stagedCSVStudents.forEach(s => {
+                    const key = `${s.grade}/${s.room}`;
+                    roomCounts[key] = (roomCounts[key] || 0) + 1;
+                });
+                const summaryText = Object.keys(roomCounts).map(k => `${k}: ${roomCounts[k]} คน`).join(', ');
+
+                if (summaryBadge) {
+                    summaryBadge.textContent = `พบ ${this._stagedCSVStudents.length} คน (${summaryText})`;
+                }
+                if (previewContainer) previewContainer.style.display = 'block';
+                if (btnSubmit) btnSubmit.disabled = false;
+
+            } catch (err) {
+                console.error('[App] CSV Preview error:', err);
+                await this.alertDialog({ title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการอ่านไฟล์: ' + err.message, type: 'danger' });
+                if (previewContainer) previewContainer.style.display = 'none';
+                if (btnSubmit) btnSubmit.disabled = true;
+            }
+        });
+
         document.getElementById('form-csv-import')?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const fileInput = document.getElementById('csv-file-input');
-            if (fileInput.files.length === 0) {
+            const parsed = this._stagedCSVStudents;
+            if (!parsed || parsed.length === 0) {
                 await this.alertDialog({ title: 'คำเตือน', message: 'กรุณาเลือกไฟล์ CSV สำหรับนำเข้า', type: 'warning' });
                 return;
             }
             try {
-                const teachers = firebaseService.getTeachers() || [];
-                const parsed = await csvImporter.parseCSV(fileInput.files[0], teachers);
-
-                if (!parsed || parsed.length === 0) {
-                    await this.alertDialog({ title: 'ไม่พบข้อมูล', message: 'ไม่พบข้อมูลนักเรียนในไฟล์ CSV กรุณาตรวจสอบรูปแบบไฟล์', type: 'warning' });
-                    return;
-                }
-
                 const firstStudent = parsed[0];
                 const targetGrade = this.normalizeGrade(firstStudent.grade) || 'ม.1';
-                const targetRoom = this.normalizeRoom(firstStudent.room) || '1';
                 const rooms = [...new Set(parsed.map(s => `ห้อง ${s.room}`))];
 
                 this._skipStudentListRefresh = true;
@@ -434,19 +483,10 @@ class Application {
                 // 2. Refresh room dropdown options so new rooms are available
                 this.updateRoomFilterDropdown();
 
-                // 3. Automatically switch room filter to newly imported room so user sees imported students immediately
+                // 3. Set room filter to '-- เลือกห้องทั้งหมด --' so all rooms show
                 const roomSelect = document.getElementById('student-room-filter');
                 if (roomSelect) {
-                    const normTarget = this.normalizeRoom(targetRoom);
-                    let foundOption = false;
-                    for (let opt of roomSelect.options) {
-                        if (this.normalizeRoom(opt.value) === normTarget) {
-                            roomSelect.value = opt.value;
-                            foundOption = true;
-                            break;
-                        }
-                    }
-                    if (!foundOption) roomSelect.value = '';
+                    roomSelect.value = '';
                 }
 
                 this.renderStudentList();
@@ -461,7 +501,7 @@ class Application {
             } catch (err) {
                 this._skipStudentListRefresh = false;
                 console.error('[App] CSV import error:', err);
-                await this.alertDialog({ title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการอ่านไฟล์ CSV: ' + err.message, type: 'danger' });
+                await this.alertDialog({ title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + err.message, type: 'danger' });
             }
         });
 
