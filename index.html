@@ -773,49 +773,113 @@
         </div>
     </div>
 
-    <!-- Modal 3: CSV Import & Live Preview -->
+    <!-- Modal 3: CSV Import v6.0 - Multi-file, Multi-class, Multi-room -->
     <div class="modal-overlay" id="modal-csv-import">
-        <div class="modal-content" style="max-width: 750px;">
-            <div class="modal-header">
-                <h3><i class="ri-upload-cloud-line"></i> นำเข้าข้อมูลนักเรียนด้วยไฟล์ CSV (ระบบตรวจจับคอลัมน์ให้อัตโนมัติ)</h3>
-                <button class="btn-close" onclick="app.closeModal('modal-csv-import')">&times;</button>
+        <div class="modal-content" style="max-width: 820px; max-height: 92vh; overflow-y: auto;">
+            <div class="modal-header" style="position: sticky; top: 0; z-index: 10; background: var(--bg-card, #fff);">
+                <h3><i class="ri-upload-cloud-2-line"></i> นำเข้าข้อมูลนักเรียน (v6.0)</h3>
+                <button class="btn-close" onclick="app.closeModal('modal-csv-import')" type="button">&times;</button>
             </div>
-            <form id="form-csv-import">
-                <div class="modal-body">
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">
-                        รองรับไฟล์ CSV จาก Excel ทั้งแบบ 6 คอลัมน์มาตรฐาน และ 5 คอลัมน์ (ชั้น, ห้อง, ครูที่ปรึกษา)
-                    </p>
-                    <div class="form-group">
-                        <label class="form-label">เลือกไฟล์ CSV นักเรียน</label>
-                        <input type="file" class="form-control" id="csv-file-input" accept=".csv" required>
+            <form id="form-csv-import" novalidate>
+                <div class="modal-body" style="padding-bottom: 0;">
+
+                    <!-- Step 1: File Drop Zone -->
+                    <div id="csv-dropzone" style="
+                        border: 2.5px dashed #6366f1;
+                        border-radius: 16px;
+                        padding: 36px 24px;
+                        text-align: center;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        background: linear-gradient(135deg, #f8f7ff 0%, #f0f4ff 100%);
+                        margin-bottom: 16px;
+                    " onclick="document.getElementById('csv-file-input').click()"
+                       ondragover="event.preventDefault(); this.style.borderColor='#4f46e5'; this.style.background='#ede9fe';"
+                       ondragleave="this.style.borderColor='#6366f1'; this.style.background='linear-gradient(135deg,#f8f7ff,#f0f4ff)';"
+                       ondrop="event.preventDefault(); this.style.borderColor='#6366f1'; this.style.background='linear-gradient(135deg,#f8f7ff,#f0f4ff)'; app.handleCSVDrop(event);">
+                        <i class="ri-file-excel-2-line" style="font-size: 3rem; color: #6366f1; display: block; margin-bottom: 8px;"></i>
+                        <p style="margin: 0; font-weight: 600; color: #4338ca; font-size: 1.05rem;">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์วางที่นี่</p>
+                        <p style="margin: 6px 0 0; font-size: 0.82rem; color: #6b7280;">
+                            รองรับไฟล์ .csv หลายไฟล์พร้อมกัน (หลายชั้น หลายห้อง) · ตรวจจับคอลัมน์อัตโนมัติ
+                        </p>
+                        <input type="file" id="csv-file-input" accept=".csv" multiple
+                               style="display:none;" required>
                     </div>
 
-                    <!-- Live CSV Preview Container -->
-                    <div id="csv-preview-container" style="display: none; margin-top: 20px; border-top: 1px dashed #cbd5e1; padding-top: 15px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                            <h5 style="margin: 0; color: var(--primary-red);"><i class="ri-eye-line"></i> ตารางตัวอย่างข้อมูลที่จะถูกนำเข้า</h5>
-                            <span id="csv-summary-badge" class="badge badge-success" style="font-size: 0.85rem;"></span>
+                    <!-- Template download shortcut -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary" style="font-size: 0.82rem; padding: 6px 14px;"
+                                onclick="csvImporter.downloadSampleTemplate()">
+                            <i class="ri-download-line"></i> ดาวน์โหลดตัวอย่าง CSV
+                        </button>
+                        <span style="font-size: 0.8rem; color: #64748b; align-self: center;">
+                            รูปแบบ: เลขที่ · รหัสประจำตัว · ชื่อ-สกุล · ระดับชั้น · ห้อง · ครูที่ปรึกษา
+                        </span>
+                    </div>
+
+                    <!-- File List / Per-file Status -->
+                    <div id="csv-file-list" style="display:none; margin-bottom: 14px;">
+                        <h5 style="margin: 0 0 10px; font-size: 0.92rem; color: #374151;">
+                            <i class="ri-file-list-3-line"></i> ไฟล์ที่เลือก
+                        </h5>
+                        <div id="csv-file-list-items"></div>
+                    </div>
+
+                    <!-- Validation Messages -->
+                    <div id="csv-validation-errors" style="display:none; margin-bottom: 12px;">
+                        <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 10px; padding: 12px 14px;">
+                            <strong style="color: #dc2626;"><i class="ri-error-warning-line"></i> พบข้อผิดพลาด</strong>
+                            <ul id="csv-error-list" style="margin: 6px 0 0; padding-left: 20px; font-size: 0.83rem; color: #7f1d1d;"></ul>
                         </div>
-                        <div style="max-height: 220px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
-                            <table class="data-table" style="font-size: 0.85rem; width: 100%;">
+                    </div>
+                    <div id="csv-validation-warnings" style="display:none; margin-bottom: 12px;">
+                        <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; padding: 12px 14px;">
+                            <strong style="color: #92400e;"><i class="ri-alert-line"></i> คำเตือน (สามารถนำเข้าได้ แต่ควรตรวจสอบ)</strong>
+                            <ul id="csv-warning-list" style="margin: 6px 0 0; padding-left: 20px; font-size: 0.83rem; color: #78350f;"></ul>
+                        </div>
+                    </div>
+
+                    <!-- Summary Cards (per grade/room) -->
+                    <div id="csv-summary-cards" style="display:none; margin-bottom: 12px;">
+                        <h5 style="margin: 0 0 8px; font-size: 0.92rem; color: #374151;">
+                            <i class="ri-bar-chart-2-line"></i> สรุปข้อมูลที่จะนำเข้า
+                        </h5>
+                        <div id="csv-summary-cards-inner" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                        <p id="csv-total-label" style="margin: 8px 0 0; font-size: 0.88rem; color: #374151; font-weight: 600;"></p>
+                    </div>
+
+                    <!-- Live Preview Table -->
+                    <div id="csv-preview-container" style="display: none; margin-top: 4px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <h5 style="margin: 0; font-size: 0.92rem; color: #1e3a8a;">
+                                <i class="ri-eye-line"></i> ตัวอย่างข้อมูล (5 รายการแรก)
+                            </h5>
+                            <span id="csv-summary-badge" style="font-size: 0.78rem; color: #6b7280;"></span>
+                        </div>
+                        <div style="max-height: 210px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px;">
+                            <table class="data-table" style="font-size: 0.82rem; width: 100%; min-width: 520px;">
                                 <thead>
-                                    <tr style="background: #f8fafc;">
+                                    <tr style="background: #f1f5f9;">
                                         <th>เลขที่</th>
-                                        <th>รหัสประจำตัว</th>
+                                        <th>รหัส</th>
                                         <th>ชื่อ - นามสกุล</th>
-                                        <th>ระดับชั้น/ห้อง</th>
+                                        <th>ชั้น/ห้อง</th>
                                         <th>ครูที่ปรึกษา</th>
                                     </tr>
                                 </thead>
-                                <tbody id="csv-preview-tbody">
-                                </tbody>
+                                <tbody id="csv-preview-tbody"></tbody>
                             </table>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
+
+                </div><!-- end modal-body -->
+
+                <div class="modal-footer" style="position: sticky; bottom: 0; background: var(--bg-card, #fff); z-index: 10; border-top: 1px solid #e5e7eb; margin-top: 12px;">
                     <button type="button" class="btn btn-secondary" onclick="app.closeModal('modal-csv-import')">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary" id="btn-submit-csv-import" disabled><i class="ri-check-line"></i> ยืนยันการนำเข้าข้อมูล</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-csv-import" disabled>
+                        <i class="ri-check-double-line"></i>
+                        <span id="btn-submit-csv-label">ยืนยันการนำเข้า</span>
+                    </button>
                 </div>
             </form>
         </div>
