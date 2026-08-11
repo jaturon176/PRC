@@ -1,7 +1,7 @@
 /**
- * ระบบดูแลช่วยเหลือนักเรียน - CSV Importer & Exporter Module v6.0
+ * ระบบดูแลช่วยเหลือนักเรียน - CSV Importer & Exporter Module v7.0
  * รองรับการนำเข้าข้อมูลรายชื่อนักเรียน หลายไฟล์ หลายห้อง หลายชั้น
- * พร้อมระบบตรวจสอบข้อผิดพลาดครบถ้วน
+ * ตัดเบอร์โทรศัพท์ออก เน้นความง่าย รวดเร็ว และแม่นยำ 100%
  */
 
 class CSVImporter {
@@ -52,7 +52,6 @@ class CSVImporter {
         if (!str) return { grade: null, room: null };
         const clean = String(str).trim().replace(/^\uFEFF/, '');
 
-        // Pattern "ม.1/2" or "ม.1 ห้อง 2" or "1/2"
         const slashMatch = clean.match(/[ม.]*(\d)\s*[\/ห้อง\s]+(\d+)/);
         if (slashMatch) {
             return { grade: `ม.${slashMatch[1]}`, room: String(parseInt(slashMatch[2], 10)) };
@@ -69,6 +68,13 @@ class CSVImporter {
             }
         }
         return { grade: clean.startsWith('ม.') ? clean : null, room: null };
+    }
+
+    // Extract grade from filename if available (e.g., "ม.102.csv", "ม.1_ห้อง1.csv", "101.csv")
+    parseGradeAndRoomFromFilename(filename) {
+        if (!filename) return { grade: null, room: null };
+        const clean = filename.replace(/\.csv$/i, '');
+        return this.parseGradeAndRoom(clean);
     }
 
     // ====================================================================
@@ -90,7 +96,6 @@ class CSVImporter {
         return { map, totalCols: cols.length };
     }
 
-    // Check if a line looks like a data header (not student data)
     isHeaderLine(line) {
         const cols = this.parseCSVLine(line);
         const firstCol = (cols[0] || '').trim().toLowerCase();
@@ -98,13 +103,12 @@ class CSVImporter {
     }
 
     // ====================================================================
-    // ROW PARSER (Smart, handles missing columns)
+    // ROW PARSER (Smart 5-column / 6-column parser without phone)
     // ====================================================================
 
     parseStudentRow(cols, headerMap, lineIdx, defaultGrade, defaultRoom) {
         const get = (idx) => idx >= 0 && idx < cols.length ? (cols[idx] || '').trim().replace(/^"|"$/g, '') : '';
 
-        // Use header-detected positions
         let number    = headerMap.number    >= 0 ? get(headerMap.number)    : (cols[0] || '').trim();
         let studentId = headerMap.studentId >= 0 ? get(headerMap.studentId) : '';
         let fullName  = headerMap.fullName  >= 0 ? get(headerMap.fullName)  : '';
@@ -112,18 +116,16 @@ class CSVImporter {
         let roomRaw   = headerMap.room      >= 0 ? get(headerMap.room)      : '';
         let advisors  = headerMap.advisors  >= 0 ? get(headerMap.advisors)  : '';
 
-        // If header map didn't detect both grade and room, smart positional detection
+        // Smart positional logic if headers incomplete
         if (headerMap.grade < 0 || headerMap.room < 0) {
             const cleaned = cols.map(c => (c || '').trim().replace(/^"|"$/g, ''));
 
-            // Fallback for number/studentId/fullName if not mapped
             if (headerMap.studentId < 0 && headerMap.fullName < 0) {
                 number    = cleaned[0] || '';
                 studentId = cleaned[1] || '';
                 fullName  = cleaned[2] || '';
             }
 
-            // Inspect trailing columns after fullName (index 3 onwards)
             const nameIdx = headerMap.fullName >= 0 ? headerMap.fullName : 2;
             const trailing = cleaned.slice(nameIdx + 1).filter(v => v !== '');
 
@@ -131,10 +133,10 @@ class CSVImporter {
                 const gNorm = this.normalizeGrade(trailing[0]);
                 if (gNorm) {
                     gradeRaw = trailing[0];
-                    roomRaw = trailing[1];
+                    roomRaw  = trailing[1];
                     advisors = trailing[2];
                 } else {
-                    roomRaw = trailing[0];
+                    roomRaw  = trailing[0];
                     advisors = trailing[1];
                 }
             } else if (trailing.length === 2) {
@@ -144,15 +146,15 @@ class CSVImporter {
 
                 if (gNorm) {
                     gradeRaw = v0;
-                    roomRaw = v1;
+                    roomRaw  = v1;
                 } else if (v0.includes('/') || v0.includes('ห้อง')) {
                     const parsed = this.parseGradeAndRoom(v0);
                     gradeRaw = parsed.grade || '';
-                    roomRaw = parsed.room || '';
+                    roomRaw  = parsed.room  || '';
                     advisors = v1;
                 } else {
-                    // Col 4 is room (e.g., '1', '2'), Col 5 is teacher/advisor
-                    roomRaw = v0;
+                    // Col 4 = Room ('1', '2'), Col 5 = Teacher Name
+                    roomRaw  = v0;
                     advisors = v1;
                 }
             } else if (trailing.length === 1) {
@@ -163,7 +165,7 @@ class CSVImporter {
                 } else {
                     const parsed = this.parseGradeAndRoom(v0);
                     if (parsed.grade) gradeRaw = parsed.grade;
-                    if (parsed.room) roomRaw = parsed.room;
+                    if (parsed.room)  roomRaw  = parsed.room;
                     if (!parsed.grade && !parsed.room && /^\d+$/.test(v0)) {
                         roomRaw = v0;
                     }
@@ -175,18 +177,15 @@ class CSVImporter {
         let grade = this.normalizeGrade(gradeRaw);
         let room  = this.normalizeRoom(roomRaw);
 
-        // If grade contains combined value like "ม.1/2"
         if (!room && gradeRaw && (gradeRaw.includes('/') || gradeRaw.includes('ห้อง'))) {
             const parsed = this.parseGradeAndRoom(gradeRaw);
             grade = this.normalizeGrade(parsed.grade) || grade;
             room  = this.normalizeRoom(parsed.room)   || room;
         }
 
-        // Apply defaults from file-level setting
         if (!grade) grade = defaultGrade || 'ม.1';
         if (!room)  room  = defaultRoom  || '1';
 
-        // Clean student name
         fullName = fullName.replace(/\s+/g, ' ').trim();
 
         return {
@@ -196,16 +195,11 @@ class CSVImporter {
             grade:     grade,
             room:      room,
             number:    number,
-            phone:     '',
             advisors:  advisors,
             status:    'active',
             createdAt: new Date().toISOString()
         };
     }
-
-    // ====================================================================
-    // VALIDATION
-    // ====================================================================
 
     validateStudents(students) {
         const errors = [];
@@ -213,7 +207,7 @@ class CSVImporter {
         const seenIds = new Map();
 
         students.forEach((s, idx) => {
-            const lineNo = idx + 2; // +2 because line 1 = header
+            const lineNo = idx + 2;
 
             if (!s.fullName || s.fullName.trim().length < 2) {
                 errors.push(`บรรทัด ${lineNo}: ชื่อ-นามสกุลว่างเปล่าหรือสั้นเกินไป`);
@@ -237,19 +231,14 @@ class CSVImporter {
         return { errors, warnings, valid: errors.length === 0 };
     }
 
-    // ====================================================================
-    // CSV LINE PARSER (RFC-4180 compliant)
-    // ====================================================================
-
     parseCSVLine(text) {
         if (!text) return [];
         const results = [];
         let entry = '';
         let inQuotes = false;
 
-        // Auto-detect delimiter
         let delimiter = ',';
-        const tabCount  = (text.match(/\t/g)  || []).length;
+        const tabCount   = (text.match(/\t/g) || []).length;
         const commaCount = (text.match(/,/g)  || []).length;
         const semiCount  = (text.match(/;/g)  || []).length;
         if (tabCount > commaCount && tabCount > semiCount) delimiter = '\t';
@@ -271,15 +260,8 @@ class CSVImporter {
         return results;
     }
 
-    // ====================================================================
-    // MAIN PARSE FUNCTION
-    // ====================================================================
-
     /**
-     * Parse a CSV file into student objects
-     * @param {File} file
-     * @param {{ defaultGrade?: string, defaultRoom?: string }} options
-     * @returns {Promise<{ students: Array, errors: string[], warnings: string[], summary: Object }>}
+     * Parse single CSV File
      */
     parseCSV(file, options = {}) {
         return new Promise((resolve, reject) => {
@@ -288,10 +270,7 @@ class CSVImporter {
 
             reader.onload = (e) => {
                 try {
-                    // Try UTF-8 first, then TIS-620 fallback
-                    let text = e.target.result;
-                    text = text.replace(/^\uFEFF/, ''); // Strip BOM
-
+                    let text = e.target.result.replace(/^\uFEFF/, '');
                     const allLines = text.split(/\r\n|\n|\r/);
                     const nonEmpty = allLines.filter(l => l.trim().length > 0);
 
@@ -300,7 +279,6 @@ class CSVImporter {
                         return;
                     }
 
-                    // Find header line
                     let headerIdx = 0;
                     for (let i = 0; i < Math.min(5, nonEmpty.length); i++) {
                         if (this.isHeaderLine(nonEmpty[i])) { headerIdx = i; break; }
@@ -315,6 +293,11 @@ class CSVImporter {
                         return;
                     }
 
+                    // Try inferring grade/room from file name if missing
+                    const fnMeta = this.parseGradeAndRoomFromFilename(file.name);
+                    const defGrade = options.defaultGrade || fnMeta.grade || null;
+                    const defRoom  = options.defaultRoom  || fnMeta.room  || null;
+
                     const students = [];
                     const parseErrors = [];
 
@@ -323,16 +306,10 @@ class CSVImporter {
                         if (!clean) return;
 
                         const cols = this.parseCSVLine(clean);
-                        const allEmpty = cols.every(c => !(c || '').trim());
-                        if (allEmpty) return;
+                        if (cols.every(c => !(c || '').trim())) return;
 
                         try {
-                            const student = this.parseStudentRow(
-                                cols, headerMap, idx,
-                                options.defaultGrade || null,
-                                options.defaultRoom  || null
-                            );
-                            // Skip rows that have no meaningful data
+                            const student = this.parseStudentRow(cols, headerMap, idx, defGrade, defRoom);
                             if (!student.fullName || student.fullName.trim().length < 2) {
                                 if (!student.studentId || student.studentId.startsWith('AUTO_')) return;
                             }
@@ -346,7 +323,6 @@ class CSVImporter {
                     const allErrors   = [...parseErrors, ...validation.errors];
                     const allWarnings = validation.warnings;
 
-                    // Build summary
                     const summary = {};
                     students.forEach(s => {
                         const key = `${s.grade}/${s.room}`;
@@ -359,7 +335,7 @@ class CSVImporter {
                         errors:   allErrors,
                         warnings: allWarnings,
                         valid:    allErrors.length === 0,
-                        summary:  Object.values(summary).sort((a, b) => a.grade.localeCompare(b.grade) || a.room.localeCompare(b.room, undefined, { numeric: true })),
+                        summary:  Object.values(summary).sort((a, b) => a.grade.localeCompare(b.grade) || parseInt(a.room) - parseInt(b.room)),
                         headerMap
                     });
                 } catch (err) {
@@ -371,15 +347,8 @@ class CSVImporter {
         });
     }
 
-    // ====================================================================
-    // MULTI-FILE MERGE
-    // ====================================================================
-
     /**
-     * Parse and merge multiple CSV files
-     * @param {FileList|Array<File>} files
-     * @param {Function} onFileProgress - callback(fileName, result)
-     * @returns {Promise<{ allStudents, allErrors, allWarnings, fileSummaries }>}
+     * Parse multiple CSV files and merge
      */
     async parseMultipleCSV(files, onFileProgress) {
         const allStudents  = [];
@@ -409,7 +378,6 @@ class CSVImporter {
             }
         }
 
-        // Deduplicate by studentId across all files
         const seen = new Map();
         const deduped = [];
         const dupWarnings = [];
@@ -432,27 +400,26 @@ class CSVImporter {
     }
 
     // ====================================================================
-    // EXPORT FUNCTIONS
+    // EXPORT & TEMPLATES (Clean 6-column / 5-column formats without phone)
     // ====================================================================
 
     downloadSampleTemplate() {
         const content = '\uFEFF' +
             'เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น,ห้อง,ครูที่ปรึกษา\n' +
-            '1,09513,ด.ช.กิตติพงษ์ เรื่องสุขสุด,ม.1,1,นายบรรจง ทองกระจาย\n' +
-            '2,09514,ด.ช.จิรายุ บาครี,ม.1,1,นายบรรจง ทองกระจาย\n' +
-            '3,09515,ด.ญ.สมหญิง ใจดี,ม.1,1,นายบรรจง ทองกระจาย\n' +
+            '1,09501,ด.ช.กิตติพงษ์ เรื่องสุขสุด,ม.1,1,นายบรรจง ทองกระจาย\n' +
+            '2,09502,ด.ช.จิรายุ บาครี,ม.1,1,นายบรรจง ทองกระจาย\n' +
+            '3,09503,ด.ญ.สุธาสินี พลแสน,ม.1,1,นายบรรจง ทองกระจาย\n' +
             '1,09536,ด.ช.กิตติวิน โล่ห์กนก,ม.1,2,นายณัฐพงษ์ อาจารย์ที\n' +
             '2,09537,ด.ช.เขมศักดิ์ ศรีโพนทอง,ม.1,2,นายณัฐพงษ์ อาจารย์ที\n' +
-            '1,09601,นางสาวพิมพ์มาดา รักดี,ม.2,1,นางสมศรี ใจดี\n' +
-            '2,09602,นายวิชัย ดีเลิศ,ม.2,1,นางสมศรี ใจดี\n';
+            '1,09601,ด.ช.วิศรุต คงสุข,ม.2,1,นางสมศรี ใจดี\n';
         this._triggerDownload(content, 'ตัวอย่างไฟล์นำเข้านักเรียน.csv');
     }
 
     exportStudentsToCSV(students) {
         if (!students || students.length === 0) { alert('ไม่มีข้อมูลสำหรับส่งออก'); return; }
-        let csv = '\uFEFF' + 'เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น,ห้อง,เบอร์โทรศัพท์,ครูที่ปรึกษา\n';
+        let csv = '\uFEFF' + 'เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น,ห้อง,ครูที่ปรึกษา\n';
         students.forEach(s => {
-            csv += [`"${s.number||''}"`,`"${s.studentId||''}"`,`"${s.fullName||''}"`,`"${s.grade||''}"`,`"${s.room||''}"`,`"${s.phone||''}"`,`"${s.advisors||''}"`].join(',') + '\n';
+            csv += [`"${s.number||''}"`,`"${s.studentId||''}"`,`"${s.fullName||''}"`,`"${s.grade||''}"`,`"${s.room||''}"`,`"${s.advisors||''}"`].join(',') + '\n';
         });
         this._triggerDownload(csv, `รายชื่อนักเรียน_${new Date().toISOString().slice(0,10)}.csv`);
     }

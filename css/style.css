@@ -849,6 +849,22 @@ h1, h2, h3, h4, h5, h6 {
     border-color: #cbd5e1;
 }
 
+/* Quick Room Switcher Pills v7.0 */
+#student-room-pills-container {
+    background: rgba(248, 250, 252, 0.8);
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 10px 14px;
+    transition: all 0.2s ease-in-out;
+}
+#student-room-pills-container button {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#student-room-pills-container button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
 .btn-sm {
     padding: 6px 12px;
     font-size: 0.85rem;

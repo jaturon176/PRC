@@ -366,6 +366,11 @@
                         </div>
                     </div>
 
+                    <!-- Quick Room Switcher Pills -->
+                    <div id="student-room-pills-container" style="margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                        <!-- Dynamically populated room pills -->
+                    </div>
+
                     <!-- Search & Filter Bar -->
                     <div class="filter-bar">
                         <input type="text" class="form-control" id="student-search-input" placeholder="🔍 ค้นหาด้วย ชื่อ-นามสกุล หรือ รหัสนักเรียน...">
@@ -401,13 +406,12 @@
                         <table class="custom-table">
                             <thead>
                                 <tr>
+                                    <th style="width: 100px;">เลขที่</th>
                                     <th>รหัสนักเรียน</th>
                                     <th>ชื่อ - นามสกุล</th>
                                     <th>ระดับชั้น/ห้อง</th>
-                                    <th>เลขที่</th>
-                                    <th>เบอร์โทรศัพท์</th>
                                     <th>ครูที่ปรึกษา</th>
-                                    <th>จัดการ</th>
+                                    <th style="width: 130px; text-align: center;">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="table-students-body">
@@ -751,15 +755,9 @@
                             <input type="text" class="form-control" id="std-number" value="1">
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div class="form-group">
-                            <label class="form-label">เบอร์โทรศัพท์</label>
-                            <input type="text" class="form-control" id="std-phone" placeholder="081-xxxxxxx">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">ชื่อครูที่ปรึกษา (สามารถระบุได้มากกว่า 1 คน)</label>
-                            <input type="text" class="form-control" id="std-advisors" placeholder="เช่น ครูสมศักดิ์ รักเรียน, ครูสมศรี ใจดี">
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">ชื่อครูที่ปรึกษา (สามารถระบุได้มากกว่า 1 คน)</label>
+                        <input type="text" class="form-control" id="std-advisors" placeholder="เช่น นายบรรจง ทองกระจาย, นางสมศรี ใจดี">
                     </div>
                 </div>
                 <div class="modal-footer">

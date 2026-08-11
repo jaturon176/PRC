@@ -245,7 +245,6 @@ class Application {
                 grade: document.getElementById('std-grade').value,
                 room: document.getElementById('std-room').value.trim(),
                 number: document.getElementById('std-number').value.trim(),
-                phone: document.getElementById('std-phone').value.trim(),
                 advisors: document.getElementById('std-advisors').value.trim()
             };
             await firebaseService.saveStudent(student);
@@ -1163,11 +1162,81 @@ class Application {
         });
     }
 
+    renderRoomPills() {
+        const container = document.getElementById('student-room-pills-container');
+        if (!container) return;
+
+        const allStudents = firebaseService.getStudents() || [];
+        if (allStudents.length === 0) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            return;
+        }
+
+        const roomMap = {};
+        allStudents.forEach(s => {
+            const g = this.normalizeGrade(s.grade) || 'ม.1';
+            const r = this.normalizeRoom(s.room) || '1';
+            const key = `${g}/${r}`;
+            if (!roomMap[key]) roomMap[key] = { grade: g, room: r, count: 0 };
+            roomMap[key].count++;
+        });
+
+        const sortedRooms = Object.values(roomMap).sort((a, b) => {
+            const gOrder = (g) => {
+                if (g.includes('ม.1')) return 1; if (g.includes('ม.2')) return 2;
+                if (g.includes('ม.3')) return 3; if (g.includes('ม.4')) return 4;
+                if (g.includes('ม.5')) return 5; if (g.includes('ม.6')) return 6;
+                return 7;
+            };
+            const diffG = gOrder(a.grade) - gOrder(b.grade);
+            if (diffG !== 0) return diffG;
+            return (parseInt(a.room, 10) || 0) - (parseInt(b.room, 10) || 0);
+        });
+
+        const activeGrade = this.normalizeGrade(document.getElementById('student-grade-filter')?.value || '');
+        const activeRoom = this.normalizeRoom(document.getElementById('student-room-filter')?.value || '');
+
+        let html = `
+            <button type="button" class="btn btn-sm ${!activeGrade && !activeRoom ? 'btn-primary' : 'btn-secondary'}"
+                    style="border-radius: 20px; padding: 4px 14px; font-weight: 600; font-size: 0.82rem;"
+                    onclick="app.selectRoomPill('','')">
+                <i class="ri-apps-2-line"></i> ทั้งหมด (${allStudents.length})
+            </button>
+        `;
+
+        sortedRooms.forEach(r => {
+            const isActive = activeGrade === r.grade && activeRoom === r.room;
+            html += `
+                <button type="button" class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}"
+                        style="border-radius: 20px; padding: 4px 14px; font-weight: 600; font-size: 0.82rem; ${isActive ? 'background:#4f46e5;border-color:#4f46e5;color:#fff;' : ''}"
+                        onclick="app.selectRoomPill('${r.grade}','${r.room}')">
+                    ${r.grade}/${r.room} <span style="opacity: 0.85; font-size: 0.76rem;">(${r.count})</span>
+                </button>
+            `;
+        });
+
+        container.innerHTML = html;
+        container.style.display = 'flex';
+    }
+
+    selectRoomPill(grade, room) {
+        const gradeSelect = document.getElementById('student-grade-filter');
+        const roomSelect  = document.getElementById('student-room-filter');
+
+        if (gradeSelect) gradeSelect.value = grade;
+        this.updateRoomFilterDropdown();
+        if (roomSelect)  roomSelect.value = room;
+
+        this.renderStudentList();
+    }
+
     renderStudentList() {
         const tbody = document.getElementById('table-students-body');
         if (!tbody) return;
 
-        // Populate room filter options dynamically based on available data
+        // Populate Room Pills and room filter dropdown
+        this.renderRoomPills();
         this.updateRoomFilterDropdown();
 
         let students = firebaseService.getStudents();
@@ -1186,8 +1255,7 @@ class Application {
             students = students.filter(s => {
                 const sGradeNorm = this.normalizeGrade(s.grade);
                 return !normGrade || sGradeNorm === normGrade || 
-                       String(s.grade || '').includes(normGrade) || 
-                       `${sGradeNorm}/${s.room}`.includes(normGrade);
+                       String(s.grade || '').includes(normGrade);
             });
         }
         if (roomFilter) {
@@ -1195,12 +1263,11 @@ class Application {
             students = students.filter(s => {
                 const sRoomNorm = this.normalizeRoom(s.room);
                 return sRoomNorm === normRoomFilter || 
-                       String(s.room).trim() === String(roomFilter).trim() ||
-                       String(s.room).includes(normRoomFilter);
+                       String(s.room).trim() === String(roomFilter).trim();
             });
         }
 
-        // Sort students NUMERICALLY: Grade level -> Room number -> Student Number (1, 2, 3, 4, 5... 10, 11)
+        // Sort students NUMERICALLY: Grade level -> Room number -> Student Number (1, 2, 3...)
         const getGradeOrder = (g) => {
             if (!g) return 99;
             const str = String(g).trim();
@@ -1232,7 +1299,7 @@ class Application {
 
         tbody.innerHTML = '';
         if (students.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b; padding:24px;">ไม่พบข้อมูลนักเรียน</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:24px;">ไม่พบข้อมูลนักเรียน</td></tr>';
             return;
         }
 
@@ -1240,15 +1307,14 @@ class Application {
             const tr = document.createElement('tr');
             const displayName = s.fullName ? (s.prefix && !s.fullName.startsWith(s.prefix) ? `${s.prefix}${s.fullName}` : s.fullName) : '-';
             tr.innerHTML = `
-                <td><strong style="color:#0284c7;">${s.studentId || '-'}</strong></td>
-                <td>${displayName}</td>
-                <td><span class="badge badge-normal">${s.grade}/${s.room}</span></td>
-                <td>${s.number || '-'}</td>
-                <td>${s.phone || '-'}</td>
+                <td><span style="font-weight: 600; color: #475569;">${s.number || '-'}</span></td>
+                <td><strong style="color:#0284c7;">${s.studentId && !s.studentId.startsWith('AUTO_') ? s.studentId : '-'}</strong></td>
+                <td><strong style="color:#1e293b;">${displayName}</strong></td>
+                <td><span class="badge badge-normal" style="background:#e0e7ff;color:#3730a3;font-weight:600;">${s.grade}/${s.room}</span></td>
                 <td>${s.advisors || s.advisorTeachers || s.guardian || '-'}</td>
-                <td>
-                    <button class="btn btn-secondary btn-sm teacher-only" onclick="app.editStudent('${s.id}')"><i class="ri-edit-line"></i> แก้ไข</button>
-                    <button class="btn btn-danger btn-sm teacher-only" onclick="app.deleteStudent('${s.id}')"><i class="ri-delete-bin-line"></i> ลบ</button>
+                <td style="text-align: center;">
+                    <button class="btn btn-secondary btn-sm teacher-only" onclick="app.editStudent('${s.id}')" title="แก้ไข"><i class="ri-edit-line"></i></button>
+                    <button class="btn btn-danger btn-sm teacher-only" onclick="app.deleteStudent('${s.id}')" title="ลบ"><i class="ri-delete-bin-line"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1417,13 +1483,12 @@ class Application {
         const s = students.find(item => item.id === id);
         if (s) {
             document.getElementById('student-id-input').value = s.id;
-            document.getElementById('std-code').value = s.studentId;
+            document.getElementById('std-code').value = s.studentId || '';
             document.getElementById('std-prefix').value = s.prefix || 'นาย';
-            document.getElementById('std-fullname').value = s.fullName;
-            document.getElementById('std-grade').value = s.grade;
-            document.getElementById('std-room').value = s.room;
-            document.getElementById('std-number').value = s.number;
-            document.getElementById('std-phone').value = s.phone || '';
+            document.getElementById('std-fullname').value = s.fullName || '';
+            document.getElementById('std-grade').value = s.grade || 'ม.1';
+            document.getElementById('std-room').value = s.room || '1';
+            document.getElementById('std-number').value = s.number || '1';
             document.getElementById('std-advisors').value = s.advisors || s.advisorTeachers || s.guardian || '';
             this.openModal('modal-student');
         }
