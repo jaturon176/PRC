@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#881337">
 
     <!-- Preload Critical CSS -->
-    <link rel="preload" href="css/style.css?v=5.0" as="style">
+    <link rel="preload" href="css/style.css?v=6.0" as="style">
 
     <!-- Remix Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
@@ -20,8 +20,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- Custom Style (v5.0 - Modern Light Theme) -->
-    <link rel="stylesheet" href="css/style.css?v=5.0">
+    <!-- Custom Style (v6.0 - Modern Light Theme) -->
+    <link rel="stylesheet" href="css/style.css?v=6.0">
 </head>
 <body>
     <!-- DEDICATED FULLSCREEN LOGIN PAGE (Matching User Reference Image Design) -->
@@ -59,34 +59,31 @@
 
             <!-- Right Form Side -->
             <div class="login-right-form">
-                <h2 class="login-form-heading">เข้าสู่ระบบ</h2>
-                <div class="login-form-subheading">กรอกชื่อผู้ใช้และรหัสผ่านของคุณเพื่อเข้าใช้งาน</div>
-
-                <!-- Role Switcher Pills -->
-                <div class="role-switcher-group">
-                    <button type="button" class="role-pill-btn active" id="role-pill-teacher" onclick="app.setLoginRole('teacher')">👨‍🏫 ครู / กิจการนักเรียน</button>
-                    <button type="button" class="role-pill-btn" id="role-pill-student" onclick="app.setLoginRole('student')">🎓 นักเรียน</button>
-                    <button type="button" class="role-pill-btn" id="role-pill-admin" onclick="app.setLoginRole('admin')">🛡️ ผู้ดูแลระบบ</button>
+                <div class="login-form-header">
+                    <h2 class="login-form-title">ยินดีต้อนรับเข้าสู่ระบบ</h2>
+                    <p class="login-form-desc">กรุณาเลือกระดับสิทธิ์และกรอกรหัสผ่านเพื่อเข้าใช้งาน</p>
                 </div>
 
-                <form id="standalone-login-form">
-                    <input type="hidden" id="page-login-role" value="teacher">
-
-                    <div class="light-field-group">
-                        <label class="light-field-label">
-                            <i class="ri-user-3-line" style="color: #0284c7;"></i> ชื่อผู้ใช้งาน / รหัสนักเรียน / อีเมล
-                        </label>
-                        <div class="light-field-input-wrap">
-                            <input type="text" class="light-field-input" id="page-login-user" placeholder="กรอกชื่อผู้ใช้ หรือ รหัสนักเรียน..." value="ครูสมศักดิ์ รักเรียน" required>
-                        </div>
+                <form id="form-page-login">
+                    <div class="form-group">
+                        <label class="form-label">สิทธิ์การเข้าใช้งาน (User Role)</label>
+                        <select class="form-select" id="page-login-role-select">
+                            <option value="student">👨‍🎓 นักเรียน / ผู้ปกครอง (ดูข้อมูลทั่วไป)</option>
+                            <option value="teacher" selected>👨‍🏫 ครูประจำชั้น / ครูที่ปรึกษา (บันทึกข้อมูล)</option>
+                            <option value="head">🏫 หัวหน้างานกิจการนักเรียน / ผู้บริหาร (ภาพรวม/อนุมัติ)</option>
+                            <option value="admin">⚙️ ผู้ดูแลระบบ (Administrator - จัดการเต็มรูปแบบ)</option>
+                        </select>
                     </div>
 
-                    <div class="light-field-group">
-                        <label class="light-field-label">
-                            <i class="ri-lock-2-line" style="color: #0284c7;"></i> รหัสผ่าน
-                        </label>
-                        <div class="light-field-input-wrap">
-                            <input type="password" class="light-field-input" id="page-login-pass" value="123456" placeholder="••••••••" required>
+                    <div class="form-group" id="group-login-username">
+                        <label class="form-label">ชื่อผู้ใช้งาน / รหัสนักเรียน (Username)</label>
+                        <input type="text" class="form-control" id="page-login-user" placeholder="กรอกชื่อผู้ใช้ เช่น admin หรือ รหัสนักเรียน">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">รหัสผ่าน (Password)</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" class="form-control" id="page-login-pass" placeholder="••••••••" required>
                             <button type="button" class="password-toggle-btn" onclick="app.togglePasswordVisibility('page-login-pass', this)"><i class="ri-eye-line"></i></button>
                         </div>
                     </div>
@@ -127,7 +124,7 @@
             </ul>
 
             <div style="padding: 18px 14px; font-size: 1rem; color: #ffffff; font-weight: 600; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.2); letter-spacing: 0.3px; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
-                &copy; 2026 PR-Care+ Developed by Krunoii v5.0
+                &copy; 2026 PR-Care+ Developed by Krunoii v6.0
             </div>
         </aside>
 
@@ -142,7 +139,7 @@
                         <span class="status-text">Online (Firebase Sync)</span>
                     </div>
                     <div style="padding: 4px 10px; border-radius: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #fde68a; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 4px;" title="เวอร์ชันปัจจุบันของระบบ">
-                        <i class="ri-git-commit-line"></i> v5.0
+                        <i class="ri-git-commit-line"></i> v6.0
                     </div>
                 </div>
 
